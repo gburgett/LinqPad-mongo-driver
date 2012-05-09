@@ -1,13 +1,16 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using GDSX.Externals.LinqPad.Driver;
 using LINQPad.Extensibility.DataContext;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
 using System.IO;
+using MongoDB.Driver.Builders;
 using Moq;
 
 namespace DriverTests
@@ -168,6 +171,29 @@ namespace DriverTests
 
             Assert.IsTrue(changed);
         }
+
+        //[TestMethod]
+        //public void Interceptor_TrackChanges_RecordsSeenObjects()
+        //{
+        //    var serverSettings = new MongoServerSettings { Server = new MongoServerAddress("localhost") };
+        //    var server = new Mock<MongoServer>(MockBehavior.Strict, serverSettings);
+        //    server.SetupGet(x => x.Settings).Returns(serverSettings);
+        //    var dbSettings = new MongoDatabaseSettings(server.Object, "testDb");
+        //    var db = new Mock<MongoDatabase>(MockBehavior.Strict, server.Object, dbSettings);
+        //    db.SetupGet(x => x.Settings).Returns(dbSettings);
+        //    db.Setup(x => x.GetCollection(It.IsAny<MongoCollectionSettings<BsonDocument>>())).Returns((MongoCollection<BsonDocument>)null);
+        //    var collection = new Mock<MongoCollection<TestSerializable>>(MockBehavior.Strict, db.Object, new MongoCollectionSettings<TestSerializable>(db.Object, "testCollection"));
+        //    StringBuilder sb = new StringBuilder();
+        //    using(var writer = new StringWriter(sb)){
+
+        //        var instance = MakeInterceptor(collection.Object, writer);
+
+        //        instance.SetProperty("TrackChanges", true, null);
+
+        //        var cursor = instance.Invoke("FindAs", typeof(TestSerializable), Query.EQ("_id", "abcdef"));
+        //    }
+
+        //}
 
         
 

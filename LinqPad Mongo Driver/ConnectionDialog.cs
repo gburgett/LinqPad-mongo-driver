@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -21,7 +22,7 @@ namespace GDSX.Externals.LinqPad.Driver
 
         private bool mCloseAlreadyValidated = false;
 
-        private Dictionary<Assembly, string> LoadedAssemblies = new Dictionary<Assembly, string>();
+        private Dictionary<string, Assembly> LoadedAssemblies = new Dictionary<string, Assembly>();
         private readonly Dictionary<Type, Type> SerializerMappings = new Dictionary<Type, Type>();
         private readonly SortedSet<Type> LoadedTypes = new SortedSet<Type>(
             MongoDynamicDataContextDriver.CommonTypes.Values,
@@ -45,6 +46,7 @@ namespace GDSX.Externals.LinqPad.Driver
                 this.UpdateLoadedAssemblies();
         }
 
+        //Loads all the exported types from the currently loaded assemblies
         public void LoadTypes()
         {
             if (string.IsNullOrWhiteSpace(this.txtConnectionString.Text))
@@ -109,6 +111,7 @@ namespace GDSX.Externals.LinqPad.Driver
                 this.dgCollectionTypes.DataSource = null;
         }
 
+        //issues a query to the DB to see if there's some type info there.
         private Type TryGetTypeForCollection(MongoDatabase db, string collectionName, ILookup<string, Type> typeLookup)
         {
             
@@ -171,7 +174,7 @@ namespace GDSX.Externals.LinqPad.Driver
                 foreach (var ass in chooser.FileNames)
                 {
                     var loaded = this.loadSafely(ass);
-                    this.LoadedAssemblies.Add(loaded, ass);
+                    this.LoadedAssemblies.Add(ass, loaded);
                     this.LoadedTypes.AddRange(loaded.GetExportedTypes());
                 }
 
@@ -184,12 +187,45 @@ namespace GDSX.Externals.LinqPad.Driver
         {
             foreach (var ass in lbLoadedAssemblies.SelectedItems)
             {
-                this.LoadedAssemblies.Remove(((KeyValuePair<Assembly, string>)ass).Key);
-                var assTypes = new HashSet<Type>(((KeyValuePair<Assembly, string>)ass).Key.GetExportedTypes());
+                this.LoadedAssemblies.Remove(((KeyValuePair<string, Assembly>)ass).Key);
+                var assTypes = new HashSet<Type>(((KeyValuePair<string, Assembly>)ass).Value.GetExportedTypes());
                 this.LoadedTypes.RemoveWhere(assTypes.Contains);
             }
 
             UpdateLoadedAssemblies();
+        }
+
+        private void lbLoadedAssemblies_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            var item = this.lbLoadedAssemblies.SelectedItem as LoadedAssemblyWrapper;
+            if (item == null)
+                return;
+
+            if(item.Assembly == null)
+            {
+                using(var frm = new OpenFileDialog())
+                {
+                    frm.FileName = item.Location;
+                    var result = frm.ShowDialog();
+                    if(result == DialogResult.OK)
+                    {
+                        if(File.Exists(frm.FileName))
+                        {
+                            try
+                            {
+                                var assembly = loadSafely(frm.FileName);
+                                this.LoadedTypes.AddRange(assembly.GetExportedTypes());
+                                item.Assembly = assembly;
+                            }catch(Exception ex)
+                            {
+                                MessageBox.Show(ex.ToString());
+                            }
+                        }
+
+                        UpdateLoadedAssemblies();
+                    }
+                }
+            }
         }
 
         private void btnConnect_Click(object sender, EventArgs e)
@@ -209,6 +245,36 @@ namespace GDSX.Externals.LinqPad.Driver
                 
         }
 
+        private void btnAddSerializer_Click(object sender, EventArgs e)
+        {
+            var types = this.LoadedTypes.Where(x => typeof(IBsonSerializer).IsAssignableFrom(x));
+            using (var frm = new TypeSelector(this.MakeTree(this.LoadedTypes).ToArray(), (this.MakeTree(types).ToArray())))
+            {
+                var result = frm.ShowDialog();
+                if (result == System.Windows.Forms.DialogResult.OK)
+                {
+                    this.SerializerMappings[frm.SelectedType] = frm.SelectedSerializer;
+                    this.lbCustomSerializers.Items.Clear();
+                    this.lbCustomSerializers.Items.AddRange(
+                        this.SerializerMappings.Select(pair => new SerializerMappingWrapper
+                        {
+                            Type = pair.Key,
+                            Serializer = pair.Value
+                        }).Cast<object>().ToArray());
+                }
+            }
+        }
+
+        private void btnRemoveSerializers_Click(object sender, EventArgs e)
+        {
+            if (this.lbCustomSerializers.SelectedItem == null)
+                return;
+
+            var item = (SerializerMappingWrapper)this.lbCustomSerializers.SelectedItem;
+            this.SerializerMappings.Remove(item.Type);
+            this.lbCustomSerializers.Items.Remove(item);
+        }
+        
         private void cbDatabases_SelectedValueChanged(object sender, EventArgs e)
         {
             if (this.cbDatabases.SelectedItem != null)
@@ -284,12 +350,15 @@ namespace GDSX.Externals.LinqPad.Driver
         }
         #endregion
 
+        /// <summary>
+        /// populates the connection properties with the values in the form
+        /// </summary>
         private void Populate(ConnectionProperties props)
         {
             props.ConnectionString = this.txtConnectionString.Text.Trim();
 
             props.AssemblyLocations = new HashSet<string>();
-            foreach (string loc in this.LoadedAssemblies.Values)
+            foreach (string loc in this.LoadedAssemblies.Keys)
                 props.AssemblyLocations.Add(loc);
 
             props.CollectionTypeMappings = new Dictionary<string, HashSet<CollectionTypeMapping>>();
@@ -310,13 +379,40 @@ namespace GDSX.Externals.LinqPad.Driver
                 props.CustomSerializers.Add(pair.Key.ToString(), pair.Value.ToString());
         }
         
+        /// <summary>
+        /// loads the saved connection properties into the form
+        /// </summary>
         private void LoadFrom(ConnectionProperties props)
         {
             this.txtConnectionString.Text = props.ConnectionString;
-            this.LoadedAssemblies = props.AssemblyLocations.ToDictionary(loc => this.loadSafely(loc));
+            this.LoadedAssemblies = props.AssemblyLocations.ToDictionary(loc => loc, loc =>
+                                                                                         {
+                                                                                             if (!File.Exists(loc))
+                                                                                                 return null;
+                                                                                             else
+                                                                                                return this.loadSafely(loc);
+                                                                                         });
             this.LoadedTypes.Clear();
             this.LoadedTypes.AddRange(MongoDynamicDataContextDriver.CommonTypes.Values);
-            this.LoadedTypes.AddRange(this.LoadedAssemblies.Keys.SelectMany(ass => ass.GetExportedTypes()));
+            var badAssemblies = new HashSet<Assembly>();
+            this.LoadedTypes.AddRange(this.LoadedAssemblies.Values.Where(x => x != null)
+                .SelectMany(ass =>
+                    {
+                        try
+                        {
+                            return ass.GetExportedTypes();
+                        }
+                        catch (Exception ex)
+                        {
+                            badAssemblies.Add(ass);
+                            return Enumerable.Empty<Type>();
+                        }
+                    }));
+            foreach (var badAssembly in badAssemblies)
+            {
+                var key = this.LoadedAssemblies.First(x => x.Value == badAssembly).Key;
+                this.LoadedAssemblies[key] = null;
+            }
             this.mDatabases = new Dictionary<string, List<CollectionTypeMapping>>();
             foreach (var pair in props.CollectionTypeMappings)
             {
@@ -388,24 +484,23 @@ namespace GDSX.Externals.LinqPad.Driver
         /// <returns>true if the data successfully saved, false if the form should stay open</returns>
         private bool DoSave()
         {
-            var connStr = this.txtConnectionString.Text.Trim();
-
             this.Populate(this.mConnection);
 
             this.DialogResult = System.Windows.Forms.DialogResult.OK;
             return true;
         }
 
-        
+        //Updates the loaded assemblies view and the type tree view
         private void UpdateLoadedAssemblies()
         {
             this.lbLoadedAssemblies.Items.Clear();
-            this.lbLoadedAssemblies.Items.AddRange(this.LoadedAssemblies.Cast<object>().ToArray());
+            this.lbLoadedAssemblies.Items.AddRange(this.LoadedAssemblies.Select(x => new LoadedAssemblyWrapper(x)).Cast<object>().ToArray());
 
             this.tvKnownTypes.Nodes.Clear();
             this.tvKnownTypes.Nodes.AddRange(MakeTree(this.LoadedTypes).ToArray());
         }
 
+        //Makes a TreeView tree of nodes out of the sorted enumerable of types
         private IEnumerable<TreeNode> MakeTree(IEnumerable<Type> typeNames)
         {
             List<TreeNode> nodes = new List<TreeNode>();
@@ -462,18 +557,17 @@ namespace GDSX.Externals.LinqPad.Driver
             return nodes;
         }
 
-
+        /// <summary>
+        /// Data wrapper for the Collection type mappings to control view formatting
+        /// </summary>
         public class TypeMappingWrapper
         {
-            private ConnectionDialog mDialog;
             private CollectionTypeMapping mData;
 
             public TypeMappingWrapper(ConnectionDialog dialog, CollectionTypeMapping data)
             {
-                this.mDialog = dialog;
                 this.mData = data;
             }
-
 
             public string CollectionName
             {
@@ -521,6 +615,9 @@ namespace GDSX.Externals.LinqPad.Driver
             }
         }
 
+        /// <summary>
+        /// Data wrapper for the Serializer mappings to control view formatting
+        /// </summary>
         public class SerializerMappingWrapper
         {
             public Type Type { get; set; }
@@ -528,140 +625,41 @@ namespace GDSX.Externals.LinqPad.Driver
 
             public override string ToString()
             {
-                return string.Format("{0} uses serializer {1}", Type, Serializer);
+                return string.Format("'{0}' uses serializer '{1}'", Type, Serializer);
             }
         }
 
-        private void btnAddSerializer_Click(object sender, EventArgs e)
+        /// <summary>
+        /// Data wrapper for the Loaded Assemblies to control view formatting
+        /// </summary>
+        public class LoadedAssemblyWrapper
         {
-            var types = this.LoadedTypes.Where(x => typeof(IBsonSerializer).IsAssignableFrom(x));
-            using (var frm = new TypeSelector(this.MakeTree(this.LoadedTypes).ToArray(), (this.MakeTree(types).ToArray())))
+            public String Location { get; private set; }
+            public Assembly Assembly { get; set; }
+
+            public LoadedAssemblyWrapper(KeyValuePair<string, Assembly> assemblyPair)
             {
-                var result = frm.ShowDialog();
-                if (result == System.Windows.Forms.DialogResult.OK)
+                this.Location = assemblyPair.Key;
+                this.Assembly = assemblyPair.Value;
+            }
+
+            public override string ToString()
+            {
+                if(this.Assembly == null)
                 {
-                    this.SerializerMappings[frm.SelectedType] = frm.SelectedSerializer;
-                    this.lbCustomSerializers.Items.Clear();
-                    this.lbCustomSerializers.Items.AddRange(
-                        this.SerializerMappings.Select(pair => new SerializerMappingWrapper
-                                                                   {
-                                                                       Type = pair.Key,
-                                                                       Serializer = pair.Value
-                                                                   }).Cast<object>().ToArray());
+                    return string.Format("Unable to load assembly ({0})", Location);
+                }
+                else
+                {
+                    return string.Format("{0} ({1})", this.Assembly.GetName().Name, this.Location);
                 }
             }
         }
-
-        private void btnRemoveSerializers_Click(object sender, EventArgs e)
-        {
-            if (this.lbCustomSerializers.SelectedItem == null)
-                return;
-
-            var item = (SerializerMappingWrapper)this.lbCustomSerializers.SelectedItem;
-            this.SerializerMappings.Remove(item.Type);
-            this.lbCustomSerializers.Items.Remove(item);
-        }
-
+        
         
     }
     
     
-
-    public class CollectionTypeMapping
-    {
-        public string CollectionName { get; set; }
-
-        public String CollectionType { get; set; }
-
-        public bool Equals(CollectionTypeMapping other)
-        {
-            if (ReferenceEquals(null, other)) return false;
-            if (ReferenceEquals(this, other)) return true;
-            return Equals(other.CollectionName, CollectionName) &&
-                Equals(other.CollectionType, this.CollectionType);
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (obj.GetType() != typeof (CollectionTypeMapping)) return false;
-            return Equals((CollectionTypeMapping) obj);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return ((CollectionName != null ? CollectionName.GetHashCode() : 0)*397) ^
-                    (this.CollectionType != null ? this.CollectionType.GetHashCode() : 0);
-            }
-        }
-
-        public XElement Serialize()
-        {
-            var ret = new XElement("CollectionTypeMapping");
-            ret.SetAttributeValue("CollectionName", this.CollectionName);
-            ret.SetAttributeValue("CollectionType", this.CollectionType);
-            //ret.SetAttributeValue("Assembly", this.AssemblyName);
-
-            return ret;
-        }
-
-        public void Deserialize(XElement element)
-        {
-            if (!element.Name.Equals((XName)"CollectionTypeMapping"))
-                throw new ArgumentException("Element must have name CollectionTypeMapping");
-
-            var attr = element.Attribute("CollectionName");
-            if (attr != null)
-                this.CollectionName = attr.Value;
-
-            attr = element.Attribute("CollectionType");
-            if (attr != null)
-                this.CollectionType = attr.Value;
-            
-            //attr = element.Attribute("Assembly");
-            //if (attr != null)
-            //    this.AssemblyName = attr.Value;
-        }
-
-        public CollectionTypeMapping Clone()
-        {
-            return new CollectionTypeMapping
-                       {
-                           CollectionName = this.CollectionName,
-                           CollectionType = this.CollectionType
-                       };
-        }
-    }
-
-    //public class TypeToStringTypeConverter : TypeConverter
-    //{
-    //    public override bool CanConvertFrom(ITypeDescriptorContext context, Type sourceType)
-    //    {
-    //        return sourceType == typeof(string);
-    //    }
-
-    //    public override bool CanConvertTo(ITypeDescriptorContext context, Type destinationType)
-    //    {
-    //        return destinationType == typeof(string);
-    //    }
-
-    //    public override object ConvertFrom(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value)
-    //    {
-    //        if (value == null)
-    //            return default(Type);
-    //        else
-    //            return Type.GetType((string)value, false, true);
-    //    }
-
-    //    public override object ConvertTo(ITypeDescriptorContext context, System.Globalization.CultureInfo culture, object value, Type destinationType)
-    //    {
-    //        return ((Type)value).AssemblyQualifiedName;
-    //    }
-    //}
-
     class DynamicComparer<T> : IComparer<T>
     {
         public Func<T, T, int> Comparer { get; private set; }

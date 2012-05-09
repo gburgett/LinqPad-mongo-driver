@@ -7,6 +7,10 @@ using LINQPad.Extensibility.DataContext;
 
 namespace GDSX.Externals.LinqPad.Driver
 {
+    /// <summary>
+    /// An object representation of all the properties that must be saved for this driver.
+    /// Provides serialization to and from <see cref="XElement"/> nodes.
+    /// </summary>
     public class ConnectionProperties
     {
         /// <summary>ConnectionString</summary>
@@ -238,4 +242,78 @@ namespace GDSX.Externals.LinqPad.Driver
                 
         }
     }
+
+    /// <summary>
+    /// A mapping from a Collection name to the deserialized Type we enforce
+    /// on the collection
+    /// </summary>
+    public class CollectionTypeMapping
+    {
+        public string CollectionName { get; set; }
+
+        public String CollectionType { get; set; }
+
+        public bool Equals(CollectionTypeMapping other)
+        {
+            if (ReferenceEquals(null, other)) return false;
+            if (ReferenceEquals(this, other)) return true;
+            return Equals(other.CollectionName, CollectionName) &&
+                Equals(other.CollectionType, this.CollectionType);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != typeof(CollectionTypeMapping)) return false;
+            return Equals((CollectionTypeMapping)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                return ((CollectionName != null ? CollectionName.GetHashCode() : 0) * 397) ^
+                    (this.CollectionType != null ? this.CollectionType.GetHashCode() : 0);
+            }
+        }
+
+        public XElement Serialize()
+        {
+            var ret = new XElement("CollectionTypeMapping");
+            ret.SetAttributeValue("CollectionName", this.CollectionName);
+            ret.SetAttributeValue("CollectionType", this.CollectionType);
+            //ret.SetAttributeValue("Assembly", this.AssemblyName);
+
+            return ret;
+        }
+
+        public void Deserialize(XElement element)
+        {
+            if (!element.Name.Equals((XName)"CollectionTypeMapping"))
+                throw new ArgumentException("Element must have name CollectionTypeMapping");
+
+            var attr = element.Attribute("CollectionName");
+            if (attr != null)
+                this.CollectionName = attr.Value;
+
+            attr = element.Attribute("CollectionType");
+            if (attr != null)
+                this.CollectionType = attr.Value;
+
+            //attr = element.Attribute("Assembly");
+            //if (attr != null)
+            //    this.AssemblyName = attr.Value;
+        }
+
+        public CollectionTypeMapping Clone()
+        {
+            return new CollectionTypeMapping
+            {
+                CollectionName = this.CollectionName,
+                CollectionType = this.CollectionType
+            };
+        }
+    }
+    
 }

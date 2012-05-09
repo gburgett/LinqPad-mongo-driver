@@ -11,9 +11,15 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System.Reflection;
 using MongoDB.Driver.Builders;
+using MongoDB.Driver.Linq;
 
 namespace GDSX.Externals.LinqPad.Driver
 {
+    /// <summary>
+    /// This class wraps and intercepts calls to a MongoCollection.  This allows useful data
+    /// to be retrieved and injected at the layer where the query gets executed.
+    /// </summary>
+    /// <typeparam name="U">The deserialized type of the collection</typeparam>
     public class Interceptor<U> : MongoCollection<U>
     {
         /// <summary>
@@ -31,6 +37,7 @@ namespace GDSX.Externals.LinqPad.Driver
 
         private MongoCollection<U> mCollection;
         private TextWriter writer;
+
         public Interceptor(MongoCollection<U> coll, TextWriter writer)
             : base(coll.Database, (MongoCollectionSettings<U>)coll.Settings)
         {
@@ -38,6 +45,8 @@ namespace GDSX.Externals.LinqPad.Driver
             this.writer = writer;
             this.TrackChanges = false;
         }
+
+        #region Change Tracking
 
         /// <summary>
         /// Submits all changes to queried objects by calling Save on the objects given by
@@ -177,6 +186,8 @@ namespace GDSX.Externals.LinqPad.Driver
             }
         }
 
+        #endregion
+
         #region overridden methods
 
         
@@ -211,11 +222,11 @@ namespace GDSX.Externals.LinqPad.Driver
         }
 
         public override FindAndModifyResult FindAndModify(
-        IMongoQuery query,
-        IMongoSortBy sortBy,
-        IMongoUpdate update,
-        bool returnNew,
-        bool upsert)
+            IMongoQuery query,
+            IMongoSortBy sortBy,
+            IMongoUpdate update,
+            bool returnNew,
+            bool upsert)
         {
             if (writer != null)
             {

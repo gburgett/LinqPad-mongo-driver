@@ -6,16 +6,13 @@ using System.Data.Services.Client;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
 using LINQPad.Extensibility.DataContext;
 using Microsoft.CSharp;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using MongoDB.Driver.Linq;
 
 
 namespace GDSX.Externals.LinqPad.Driver
@@ -32,6 +29,10 @@ namespace GDSX.Externals.LinqPad.Driver
         
         private static readonly PluralizationService pluralizationService = PluralizationService.CreateService(new CultureInfo("en-US"));
 
+        /// <summary>
+        /// Gets the arguments that are passed to the dynamically instantiated driver
+        /// </summary>
+        /// <param name="cxInfo">the serialized connection properties.</param>
         public override object[] GetContextConstructorArguments(IConnectionInfo cxInfo)
         {
             var props = new ConnectionProperties();
@@ -43,6 +44,11 @@ namespace GDSX.Externals.LinqPad.Driver
             return new[] { mongo };
         }
 
+        /// <summary>
+        /// Gets an array describing the types of objects that will be passed into the dynamically
+        /// instantiated driver
+        /// </summary>
+        /// <param name="cxInfo">the serialized connection properties.</param>
         public override ParameterDescriptor[] GetContextConstructorParameters(IConnectionInfo cxInfo)
         {
             return new[] { new ParameterDescriptor("mongo", typeof(MongoServer).FullName), };
@@ -53,6 +59,13 @@ namespace GDSX.Externals.LinqPad.Driver
             return cxInfo.DisplayName;
         }
 
+        /// <summary>
+        /// LinqPad calls this to display the Connection Options dialog & generate the connection
+        /// properties.
+        /// </summary>
+        /// <param name="cxInfo">the serialized connection properties.</param>
+        /// <param name="isNewConnection">True if this is a brand new connection</param>
+        /// <returns>true if the connection dialog completed successfully</returns>
         public override bool ShowConnectionDialog(IConnectionInfo cxInfo, bool isNewConnection)
         {
             var props = new ConnectionProperties();
@@ -83,9 +96,18 @@ namespace GDSX.Externals.LinqPad.Driver
 
         public override string Author
         {
-            get { return "Gordon Burgett"; }
+            get { return "GDSX\\Gordon.Burgett"; }
         }
 
+        /// <summary>
+        /// Creates the Schema which displays information about the connection to the user,
+        /// and dynamically generates the driver as an assembly.
+        /// </summary>
+        /// <param name="cxInfo">the serialized connection properties.</param>
+        /// <param name="assemblyToBuild">The location where the dynamically generated assembly should be created</param>
+        /// <param name="nameSpace">The namespace of the driver class</param>
+        /// <param name="typeName">The name of the driver class</param>
+        /// <returns>A tree of ExplorerItem objects which is shown to the user in LinqPad's UI</returns>
         public override List<ExplorerItem> GetSchemaAndBuildAssembly(IConnectionInfo cxInfo, AssemblyName assemblyToBuild, ref string nameSpace, ref string typeName)
         {
             var props = new ConnectionProperties();
@@ -102,6 +124,12 @@ namespace GDSX.Externals.LinqPad.Driver
             return BuildSchema(props, assemblies);
         }
 
+        /// <summary>
+        /// Builds the Schema tree for display to the user
+        /// </summary>
+        /// <param name="props">The deserialized Connection Properties</param>
+        /// <param name="assemblies">The already-loaded assemblies.</param>
+        /// <returns>A tree of ExplorerItem objects which is shown to the user in LinqPad's UI</returns>
         public List<ExplorerItem> BuildSchema(ConnectionProperties props, List<Assembly> assemblies)
         {
             
@@ -148,8 +176,7 @@ namespace GDSX.Externals.LinqPad.Driver
                 }
                 else
                 {
-                    var name = DoPluralize(ctm.CollectionName);
-                    UntypedCollections.Add(new ExplorerItem(name + "Collection", ExplorerItemKind.CollectionLink, ExplorerIcon.View));
+                    UntypedCollections.Add(new ExplorerItem(ctm.CollectionName, ExplorerItemKind.Category, ExplorerIcon.Blank));
                 }
             }
 
@@ -174,6 +201,14 @@ namespace GDSX.Externals.LinqPad.Driver
             return ret;
         }
 
+        /// <summary>
+        /// Generates the Dynamic Driver class as a string of code to be compiled.
+        /// </summary>
+        /// <param name="props">The deserialized Connection Properties</param>
+        /// <param name="assemblies">The already-loaded assemblies.</param>
+        /// <param name="nameSpace">The namespace of the driver class</param>
+        /// <param name="typeName">The name of the driver class</param>
+        /// <returns>The Driver class as a string of C# code</returns>
         public string GenerateDynamicCode(ConnectionProperties props, List<Assembly> assemblies, string nameSpace, string typeName)
         {
             var writer = new StringWriter();
@@ -317,17 +352,25 @@ using GDSX.Externals.LinqPad.Driver;
             return writer.ToString();
         }
         
+        /// <summary>
+        /// Loads up the Static code files which should be built with the dynamic driver as strings
+        /// </summary>
+        /// <returns>An enumerable of the static code files read as strings</returns>
         public IEnumerable<string> GetStaticCodeFiles()
         {
             var ass = Assembly.GetExecutingAssembly();
             string[] files = { "GDSX.Externals.LinqPad.Driver.InterceptorCollection.cs" };
             return files.Select(x =>
                                     {
-                                        var stream = ass.GetManifestResourceStream(x);
-                                        if (stream == null)
-                                            throw new Exception("Could not find static code files");
-                                        using (var reader = new StreamReader(stream))
-                                            return reader.ReadToEnd();
+                                        string s = null;
+                                        using (var stream = ass.GetManifestResourceStream(x))
+                                        {
+                                            if (stream == null)
+                                                throw new Exception("Could not find static code files");
+                                            using (var reader = new StreamReader(stream))
+                                                s = reader.ReadToEnd();
+                                        }
+                                        return s;
                                     });
         }
 
@@ -340,6 +383,10 @@ using GDSX.Externals.LinqPad.Driver;
         }
 
     
+        /// <summary>
+        /// Gets the requested type name out of one of the loaded assemblies,
+        /// or null if it can't be found
+        /// </summary>
         private Type TryLoadType(IEnumerable<Assembly> assemblies, string typeName)
         {
             string nameToLoad = typeName.Split(',').First();
@@ -355,11 +402,21 @@ using GDSX.Externals.LinqPad.Driver;
             return Type.GetType(nameToLoad);
         }
 
+        /// <summary>
+        /// Called when the Driver context is torn down to clean up resources
+        /// </summary>
         public override void TearDownContext(IConnectionInfo cxInfo, object context, QueryExecutionManager executionManager, object[] constructorArguments)
         {
             ((MongoServer)constructorArguments[0]).Disconnect();
         }
 
+        /// <summary>
+        /// Compiles the assembly from the code files loaded as strings.
+        /// </summary>
+        /// <param name="props">The deserialized Connection Properties</param>
+        /// <param name="code">The loaded strings of C# code</param>
+        /// <param name="name">The location where the dynamically generated assembly should be created</param>
+        /// <param name="GetDriverFolder">An injected function that gets the LinqPad driver folder</param>
         public void BuildAssembly(ConnectionProperties props, IEnumerable<string> code, AssemblyName name, Func<string> GetDriverFolder)
         {
             // Use the CSharpCodeProvider to compile the generated code:
@@ -383,6 +440,11 @@ using GDSX.Externals.LinqPad.Driver;
                     ("Cannot compile typed context: " + results.Errors[0].ErrorText + " (line " + results.Errors[0].Line + ")");
         }
 
+        /// <summary>
+        /// Gets the additional assemblies that the Driver will require at runtime
+        /// </summary>
+        /// <param name="cxInfo">the serialized connection properties.</param>
+        /// <returns>The locations of the assemblies to be loaded</returns>
         public override IEnumerable<string> GetAssembliesToAdd(IConnectionInfo cxInfo)
         {
             ConnectionProperties props = new ConnectionProperties();
@@ -396,6 +458,11 @@ using GDSX.Externals.LinqPad.Driver;
                        .Concat(props.AssemblyLocations);
         }
 
+        /// <summary>
+        /// Gets the additional namespaces that should be imported for queries using this driver
+        /// </summary>
+        /// <param name="cxInfo">the serialized connection properties.</param>
+        /// <returns>The namespaces that should be imported as strings</returns>
         public override IEnumerable<string> GetNamespacesToAdd(IConnectionInfo cxInfo)
         {
             ConnectionProperties props = new ConnectionProperties();
@@ -421,10 +488,17 @@ using GDSX.Externals.LinqPad.Driver;
                 .Distinct();
         }
 
+        /// <summary>
+        /// Initializes the driver after it has been instantiated.
+        /// </summary>
+        /// <param name="cxInfo">the serialized connection properties.</param>
+        /// <param name="context">The driver object</param>
+        /// <param name="executionManager">The current Query Execution Manager for this query</param>
         public override void InitializeContext(IConnectionInfo cxInfo, object context, QueryExecutionManager executionManager)
         {
-            
             base.InitializeContext(cxInfo, context, executionManager);
+
+            //since the type is generated dynamically we can only access it by reflection
 
             PropertyInfo pinf = context.GetType().GetProperty("SqlTabWriter", BindingFlags.Instance | BindingFlags.Public);
             pinf.SetValue(context, executionManager.SqlTranslationWriter, null);

@@ -249,6 +249,7 @@
             this.lbLoadedAssemblies.Name = "lbLoadedAssemblies";
             this.lbLoadedAssemblies.Size = new System.Drawing.Size(314, 47);
             this.lbLoadedAssemblies.TabIndex = 9;
+            this.lbLoadedAssemblies.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.lbLoadedAssemblies_MouseDoubleClick);
             // 
             // tvKnownTypes
             // 
