@@ -185,11 +185,14 @@ namespace GDSX.Externals.LinqPad.Driver
 
         private void btnRemoveAssembly_Click(object sender, EventArgs e)
         {
-            foreach (var ass in lbLoadedAssemblies.SelectedItems)
+            foreach (LoadedAssemblyWrapper ass in lbLoadedAssemblies.SelectedItems)
             {
-                this.LoadedAssemblies.Remove(((KeyValuePair<string, Assembly>)ass).Key);
-                var assTypes = new HashSet<Type>(((KeyValuePair<string, Assembly>)ass).Value.GetExportedTypes());
-                this.LoadedTypes.RemoveWhere(assTypes.Contains);
+                this.LoadedAssemblies.Remove(ass.Location);
+                if (ass.Assembly != null)
+                {
+                    var assTypes = new HashSet<Type>(ass.Assembly.GetExportedTypes());
+                    this.LoadedTypes.RemoveWhere(assTypes.Contains);
+                }
             }
 
             UpdateLoadedAssemblies();
@@ -215,7 +218,8 @@ namespace GDSX.Externals.LinqPad.Driver
                             {
                                 var assembly = loadSafely(frm.FileName);
                                 this.LoadedTypes.AddRange(assembly.GetExportedTypes());
-                                item.Assembly = assembly;
+                                this.LoadedAssemblies[frm.FileName] = assembly;
+                                this.LoadedAssemblies.Remove(item.Location);
                             }catch(Exception ex)
                             {
                                 MessageBox.Show(ex.ToString());
@@ -235,7 +239,7 @@ namespace GDSX.Externals.LinqPad.Driver
 
         private void tvKnownTypes_DoubleClick(object sender, EventArgs e)
         {
-            if(tvKnownTypes.SelectedNode.Tag != null)
+            if(tvKnownTypes.SelectedNode != null && tvKnownTypes.SelectedNode.Tag != null)
             {
                 foreach (var row in this.dgCollectionTypes.SelectedCells.Cast<DataGridViewCell>().Where(x => string.Equals(x.OwningColumn.Name, "CollectionType")))
                 {

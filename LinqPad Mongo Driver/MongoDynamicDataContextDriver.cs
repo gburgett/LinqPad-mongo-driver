@@ -243,8 +243,12 @@ using GDSX.Externals.LinqPad.Driver;
     public TextWriter SqlTabWriter { get; set; }
 ");
 
+            writer.WriteLine(string.Format(
+                    "\tpublic String ConnectionString {{ get {{ return \"{0}\"; }} }}\n", props.ConnectionString));
+            
             string db = props.SelectedDatabase;
-                
+            writer.WriteLine(string.Format(
+                    "\tpublic String DatabaseName {{ get {{ return \"{0}\"; }} }}\n", db));
             writer.WriteLine(string.Format(
                     "\tpublic MongoDatabase db {{ get {{ return this.mongo.GetDatabase(\"{0}\"); }} }}\n", db));
 

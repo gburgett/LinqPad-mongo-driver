@@ -81,10 +81,10 @@
             this.dgCollectionTypes.AllowDrop = true;
             this.dgCollectionTypes.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgCollectionTypes.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.dgCollectionTypes.Location = new System.Drawing.Point(3, 151);
+            this.dgCollectionTypes.Location = new System.Drawing.Point(3, 191);
             this.dgCollectionTypes.Name = "dgCollectionTypes";
             this.tableLayoutPanel1.SetRowSpan(this.dgCollectionTypes, 2);
-            this.dgCollectionTypes.Size = new System.Drawing.Size(364, 391);
+            this.dgCollectionTypes.Size = new System.Drawing.Size(380, 382);
             this.dgCollectionTypes.TabIndex = 6;
             // 
             // btnConnect
@@ -118,6 +118,7 @@
             // 
             // tableLayoutPanel1
             // 
+            this.tableLayoutPanel1.AutoSize = true;
             this.tableLayoutPanel1.ColumnCount = 2;
             this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 320F));
@@ -135,12 +136,10 @@
             this.tableLayoutPanel1.RowCount = 5;
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 65F));
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 30F));
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 53F));
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 366F));
+            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 93F));
+            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 353F));
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 22F));
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 8F));
-            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tableLayoutPanel1.Size = new System.Drawing.Size(690, 545);
+            this.tableLayoutPanel1.Size = new System.Drawing.Size(706, 576);
             this.tableLayoutPanel1.TabIndex = 18;
             // 
             // panel1
@@ -149,7 +148,7 @@
             this.panel1.Controls.Add(this.btnAddAssembly);
             this.panel1.Controls.Add(this.lblAssemblies);
             this.panel1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panel1.Location = new System.Drawing.Point(373, 68);
+            this.panel1.Location = new System.Drawing.Point(389, 68);
             this.panel1.MaximumSize = new System.Drawing.Size(0, 30);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(314, 24);
@@ -195,10 +194,10 @@
             this.panel2.Controls.Add(this.bntImport);
             this.panel2.Controls.Add(this.btnExport);
             this.panel2.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.panel2.Location = new System.Drawing.Point(373, 517);
+            this.panel2.Location = new System.Drawing.Point(389, 544);
             this.panel2.MaximumSize = new System.Drawing.Size(0, 30);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(314, 25);
+            this.panel2.Size = new System.Drawing.Size(314, 29);
             this.panel2.TabIndex = 8;
             // 
             // btnCancel
@@ -245,18 +244,18 @@
             // 
             this.lbLoadedAssemblies.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lbLoadedAssemblies.FormattingEnabled = true;
-            this.lbLoadedAssemblies.Location = new System.Drawing.Point(373, 98);
+            this.lbLoadedAssemblies.Location = new System.Drawing.Point(389, 98);
             this.lbLoadedAssemblies.Name = "lbLoadedAssemblies";
-            this.lbLoadedAssemblies.Size = new System.Drawing.Size(314, 47);
+            this.lbLoadedAssemblies.Size = new System.Drawing.Size(314, 87);
             this.lbLoadedAssemblies.TabIndex = 9;
             this.lbLoadedAssemblies.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.lbLoadedAssemblies_MouseDoubleClick);
             // 
             // tvKnownTypes
             // 
             this.tvKnownTypes.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tvKnownTypes.Location = new System.Drawing.Point(373, 151);
+            this.tvKnownTypes.Location = new System.Drawing.Point(389, 191);
             this.tvKnownTypes.Name = "tvKnownTypes";
-            this.tvKnownTypes.Size = new System.Drawing.Size(314, 360);
+            this.tvKnownTypes.Size = new System.Drawing.Size(314, 347);
             this.tvKnownTypes.TabIndex = 10;
             this.tvKnownTypes.DoubleClick += new System.EventHandler(this.tvKnownTypes_DoubleClick);
             // 
@@ -271,7 +270,7 @@
             this.panel3.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panel3.Location = new System.Drawing.Point(3, 3);
             this.panel3.Name = "panel3";
-            this.panel3.Size = new System.Drawing.Size(684, 59);
+            this.panel3.Size = new System.Drawing.Size(700, 59);
             this.panel3.TabIndex = 11;
             // 
             // lbCustomSerializers
@@ -280,7 +279,7 @@
             this.lbCustomSerializers.FormattingEnabled = true;
             this.lbCustomSerializers.Location = new System.Drawing.Point(3, 98);
             this.lbCustomSerializers.Name = "lbCustomSerializers";
-            this.lbCustomSerializers.Size = new System.Drawing.Size(364, 47);
+            this.lbCustomSerializers.Size = new System.Drawing.Size(380, 87);
             this.lbCustomSerializers.TabIndex = 12;
             // 
             // panel4
@@ -291,7 +290,7 @@
             this.panel4.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panel4.Location = new System.Drawing.Point(3, 68);
             this.panel4.Name = "panel4";
-            this.panel4.Size = new System.Drawing.Size(364, 24);
+            this.panel4.Size = new System.Drawing.Size(380, 24);
             this.panel4.TabIndex = 16;
             // 
             // lblCustomSerializers
@@ -331,7 +330,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(690, 545);
+            this.ClientSize = new System.Drawing.Size(706, 576);
             this.Controls.Add(this.tableLayoutPanel1);
             this.Name = "ConnectionDialog";
             this.Text = "ConnectionDialog";
@@ -346,6 +345,7 @@
             this.panel4.ResumeLayout(false);
             this.panel4.PerformLayout();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
