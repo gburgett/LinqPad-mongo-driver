@@ -153,8 +153,12 @@ namespace GDSX.Externals.LinqPad.Driver
                 {
                     var name = DoPluralize(ctm.CollectionName);
 
-                    coll = new ExplorerItem(name,
-                        ExplorerItemKind.QueryableObject, ExplorerIcon.Table);
+                    coll = new ExplorerItem(name, ExplorerItemKind.QueryableObject, ExplorerIcon.Table)
+                               {
+                                   IsEnumerable = true,
+                                   DragText = name,
+                                   ToolTipText = String.Format("Queryable of {0}", type.Name)
+                               };
 
                     foreach (PropertyInfo info in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
                     {
@@ -170,7 +174,12 @@ namespace GDSX.Externals.LinqPad.Driver
 
                     ret.Add(coll);
 
-                    var tColl = new ExplorerItem(name + "Collection", ExplorerItemKind.CollectionLink, ExplorerIcon.View);
+                    var tColl = new ExplorerItem(name + "Collection", ExplorerItemKind.CollectionLink, ExplorerIcon.View)
+                                    {
+                                        IsEnumerable = true,
+                                        DragText = name + "Collection",
+                                        ToolTipText = String.Format("MongoCollection of {0}", type.Name)
+                                    };
                     tColl.Children = coll.Children;
                     TypedCollections.Add(tColl);
                 }
