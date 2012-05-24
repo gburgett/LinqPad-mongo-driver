@@ -38,8 +38,10 @@
     <AssemblyOriginatorKeyFile>Gordon%27s Key.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="LINQPad">
-      <HintPath>..\..\..\LINQPad4\LINQPad.exe</HintPath>
+    <Reference Include="LINQPad, Version=1.0.0.0, Culture=neutral, PublicKeyToken=21353812cd2a2db5, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <ExecutableExtension>.exe</ExecutableExtension>
+      <HintPath>lib\LINQPad.exe</HintPath>
     </Reference>
     <Reference Include="MongoDB.Bson, Version=1.4.0.4468, Culture=neutral, PublicKeyToken=f686731cfb9cc103, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -84,7 +86,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Gordon%27s Key.pfx" />
-    <None Include="Properties\DataSources\CollectionTypeMapping.datasource" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />
@@ -98,6 +99,9 @@
     <Content Include="header.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\DataSources\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
