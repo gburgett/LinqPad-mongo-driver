@@ -34,17 +34,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="GDSX.TripLink.IO">
-      <HintPath>..\..\..\..\..\..\source\TripLink\TripLink\TripLinkIO\bin\Debug\GDSX.TripLink.IO.dll</HintPath>
-    </Reference>
     <Reference Include="LINQPad, Version=1.0.0.0, Culture=neutral, PublicKeyToken=21353812cd2a2db5, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
       <ExecutableExtension>.exe</ExecutableExtension>
-    </Reference>
-    <Reference Include="MongoDB.Bson">
-      <HintPath>..\..\..\..\..\..\source\TripLink\MongoDBDriver\Driver\bin\Debug\MongoDB.Bson.dll</HintPath>
-    </Reference>
-    <Reference Include="MongoDB.Driver">
-      <HintPath>..\..\..\..\..\..\source\TripLink\MongoDBDriver\Driver\bin\Debug\MongoDB.Driver.dll</HintPath>
+      <HintPath>..\LinqPad Mongo Driver\lib\LINQPad.exe</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />

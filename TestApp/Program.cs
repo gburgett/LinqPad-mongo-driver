@@ -9,9 +9,6 @@ using System.Windows.Forms;
 using System.Xml.Linq;
 using GDSX.Externals.LinqPad.Driver;
 using LINQPad.Extensibility.DataContext;
-using MongoDB.Bson;
-using MongoDB.Driver;
-using MongoDB.Driver.Linq;
 
 namespace TestApp
 {

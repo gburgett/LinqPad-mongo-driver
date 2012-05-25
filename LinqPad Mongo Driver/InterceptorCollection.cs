@@ -29,8 +29,8 @@ namespace GDSX.Externals.LinqPad.Driver
         public bool TrackChanges { get; set; }
 
         private Dictionary<object, U> mToUpdate = new Dictionary<object, U>();
-        private Dictionary<object, int> mOriginalHashes = new Dictionary<object, int>();
-        public IEnumerable<U> ToUpdate { get { return this.mToUpdate.Where(x => HasChanged(x.Value, mOriginalHashes[x.Key])).Select(x => x.Value); } }
+        private Dictionary<object, BsonDocument> mOriginalDocuments = new Dictionary<object, BsonDocument>();
+        public IEnumerable<U> ToUpdate { get { return this.mToUpdate.Where(x => HasChanged(x.Value, mOriginalDocuments[x.Key])).Select(x => x.Value); } }
 
         private Dictionary<object, U> mToDelete = new Dictionary<object, U>();
         public ICollection<U> ToDelete { get { return this.mToDelete.Values; } }
@@ -56,6 +56,7 @@ namespace GDSX.Externals.LinqPad.Driver
         {
             int updated = 0;
             int deleted = 0;
+            
             foreach (U item in this.ToUpdate)
             {
                 var result = this.Save(item, SafeMode.True);
@@ -114,40 +115,12 @@ namespace GDSX.Externals.LinqPad.Driver
         }
 
         /// <summary>
-        /// Checks the object against the original DeepHash to see if it changed.
+        /// Checks the object against the original BsonDocument to see if it changed.
         /// </summary>
-        public static bool HasChanged<T>(T o, int originalHash)
+        public static bool HasChanged<T>(T o, BsonDocument originalDoc)
         {
-            return originalHash != DeepHash(o);
-        }
-
-        /// <summary>
-        /// Serializes the object using the BsonSerializer, then hashes the
-        /// serialized value.
-        /// </summary>
-        public static int DeepHash<T>(T o)
-        {
-            using (var stream = new MemoryStream())
-            {
-                using (var writer = BsonWriter.Create(stream))
-                {
-                    BsonSerializer.Serialize<T>(writer, o);
-                    writer.Flush();
-                    stream.Position = 0;
-                    byte[] bytes = stream.GetBuffer();
-
-                    int hash = 0;
-                    unchecked
-                    {
-                        const int p = 16777619;
-                        hash = (int)2166136261;
-
-                        for (int i = 0; i < bytes.Length; i++)
-                            hash = (hash ^ bytes[i]) * p;
-                    }
-                    return hash;
-                }
-            }
+            var doc = o.ToBsonDocument();
+            return !doc.Equals(originalDoc);
         }
 
         /// <summary>
@@ -158,16 +131,18 @@ namespace GDSX.Externals.LinqPad.Driver
         /// <returns></returns>
         public static object GetId(object item)
         {
-            var props = item.GetType().GetProperties();
-
-            PropertyInfo id = item.GetType().GetProperty("Id", BindingFlags.Instance | BindingFlags.Public);
-            if (id == null)
-                id = props.FirstOrDefault(x => x.GetCustomAttributes(typeof(BsonIdAttribute), true).Any());
-
-            if (id == null)
+            var serializer = BsonSerializer.LookupSerializer(item.GetType());
+            object id;
+            Type idNominalType;
+            IIdGenerator idGenerator;
+            if (serializer.GetDocumentId(item, out id, out idNominalType, out idGenerator))
+            {
+                return id;
+            }
+            else
+            {
                 return null;
-
-            return id.GetValue(item, null);
+            }
         }
 
         private void TryRemember(object o)
@@ -178,11 +153,12 @@ namespace GDSX.Externals.LinqPad.Driver
             if (o is U)
             {
                 var id = GetId(o);
+
                 if (id == null)
                     return;
 
                 this.mToUpdate[id] = (U)o;
-                this.mOriginalHashes[id] = DeepHash((U)o);
+                this.mOriginalDocuments[id] = o.ToBsonDocument();
             }
         }
 
@@ -302,15 +278,31 @@ namespace GDSX.Externals.LinqPad.Driver
 
             public override IEnumerator<T> GetEnumerator()
             {
-                var e = base.GetEnumerator();
-                return EnumerateRemaining(e).GetEnumerator();
+                if (this.Fields == null)
+                {
+                    var e = base.GetEnumerator();
+                    return EnumerateRemaining(e).GetEnumerator();
+                }
+                else
+                {
+                    //tracking changes with fields enabled is not supported
+                    return base.GetEnumerator();
+                }
                 
             }
 
             protected override System.Collections.IEnumerator IEnumerableGetEnumerator()
             {
-                var e = base.IEnumerableGetEnumerator();
-                return EnumerateRemaining(e).GetEnumerator();
+                if (this.Fields == null)
+                {
+                    var e = base.IEnumerableGetEnumerator();
+                    return EnumerateRemaining(e).GetEnumerator();
+                }
+                else
+                {
+                    //tracking changes with fields enabled is not supported
+                    return base.IEnumerableGetEnumerator();
+                }
             }
 
             private IEnumerable<T> EnumerateRemaining(IEnumerator<T> e)

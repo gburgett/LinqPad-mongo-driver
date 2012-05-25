@@ -118,19 +118,19 @@ namespace DriverTests
             Assert.AreEqual("abcdef", ret.ToString());
         }
 
-        [TestMethod]
-        public void Interceptor_DeepHash_Hashes()
-        {
-            var deepHash = GeneratedAssembly.GetType("GDSX.Externals.LinqPad.Driver.Interceptor`1", true).MakeGenericType(typeof(TestSerializable))
-                .GetMethod("DeepHash", BindingFlags.Public | BindingFlags.Static);
-            deepHash = deepHash.MakeGenericMethod(typeof(TestSerializable));
+        //[TestMethod]
+        //public void Interceptor_DeepHash_Hashes()
+        //{
+        //    //var deepHash = GeneratedAssembly.GetType("GDSX.Externals.LinqPad.Driver.Interceptor`1", true).MakeGenericType(typeof(TestSerializable))
+        //    //    .GetMethod("DeepHash", BindingFlags.Public | BindingFlags.Static);
+        //    //deepHash = deepHash.MakeGenericMethod(typeof(TestSerializable));
 
-            int hash = (int)deepHash.Invoke(null, new object[] { new TestSerializable { TestId = "abcdef" } });
-            int hash2 = (int)deepHash.Invoke(null, new object[] { new TestSerializable { TestId = "abcdef" } });
+        //    //int hash = (int)deepHash.Invoke(null, new object[] { new TestSerializable { TestId = "abcdef" } });
+        //    //int hash2 = (int)deepHash.Invoke(null, new object[] { new TestSerializable { TestId = "abcdef" } });
 
-            Assert.AreEqual(hash, hash2);
+        //    //Assert.AreEqual(hash, hash2);
 
-        }
+        //}
 
         [TestMethod]
         public void Interceptor_HasChanged_FalseWhenNoChanges()
@@ -139,14 +139,16 @@ namespace DriverTests
                 .GetMethod("HasChanged", BindingFlags.Public | BindingFlags.Static);
             hasChanged = hasChanged.MakeGenericMethod(typeof(TestSerializable));
 
-            var deepHash = GeneratedAssembly.GetType("GDSX.Externals.LinqPad.Driver.Interceptor`1", true).MakeGenericType(typeof(TestSerializable))
-                .GetMethod("DeepHash", BindingFlags.Public | BindingFlags.Static);
-            deepHash = deepHash.MakeGenericMethod(typeof(TestSerializable));
+            //var deepHash = GeneratedAssembly.GetType("GDSX.Externals.LinqPad.Driver.Interceptor`1", true).MakeGenericType(typeof(TestSerializable))
+            //    .GetMethod("DeepHash", BindingFlags.Public | BindingFlags.Static);
+            //deepHash = deepHash.MakeGenericMethod(typeof(TestSerializable));
 
             var toTest = new TestSerializable { TestId = "abcdef" };
-            int hash = (int)deepHash.Invoke(null, new object[] { toTest });
+            //int hash = (int)deepHash.Invoke(null, new object[] { toTest });
 
-            bool changed = (bool)hasChanged.Invoke(null, new object[] { toTest, hash });
+            var originalDoc = toTest.ToBsonDocument();
+
+            bool changed = (bool)hasChanged.Invoke(null, new object[] { toTest, originalDoc });
 
             Assert.IsFalse(changed);
         }
@@ -158,16 +160,17 @@ namespace DriverTests
                 .GetMethod("HasChanged", BindingFlags.Public | BindingFlags.Static);
             hasChanged = hasChanged.MakeGenericMethod(typeof(TestSerializable));
 
-            var deepHash = GeneratedAssembly.GetType("GDSX.Externals.LinqPad.Driver.Interceptor`1", true).MakeGenericType(typeof(TestSerializable))
-                .GetMethod("DeepHash", BindingFlags.Public | BindingFlags.Static);
-            deepHash = deepHash.MakeGenericMethod(typeof(TestSerializable));
+            //var deepHash = GeneratedAssembly.GetType("GDSX.Externals.LinqPad.Driver.Interceptor`1", true).MakeGenericType(typeof(TestSerializable))
+            //    .GetMethod("DeepHash", BindingFlags.Public | BindingFlags.Static);
+            //deepHash = deepHash.MakeGenericMethod(typeof(TestSerializable));
 
             var toTest = new TestSerializable { TestId = "abcdef" };
-            int hash = (int)deepHash.Invoke(null, new object[] { toTest });
+            //int hash = (int)deepHash.Invoke(null, new object[] { toTest });
+            var origDocument = toTest.ToBsonDocument();
 
             toTest.TestId = "qrx";
 
-            bool changed = (bool)hasChanged.Invoke(null, new object[] { toTest, hash });
+            bool changed = (bool)hasChanged.Invoke(null, new object[] { toTest, origDocument });
 
             Assert.IsTrue(changed);
         }
