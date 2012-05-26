@@ -11,18 +11,18 @@ Deploying the LINQPad Mongo driver:
 	7) Return to the "Choose Data Context" menu and select "Mongo BSON Driver" by Gordon Burgett, hit Next
 	
 	At this point we need to configure the driver.  It will at a minimum need a connection string.  If you want to take advantage of the BSON serialization
-	and work with strongly-typed objects you will need access to the TripLink IO assemblies.  If someone else has set up their connection before you can ask
+	and work with strongly-typed objects you will need access to your application's assemblies.  If someone else has set up their connection before you can ask
 	them to export their connection settings using the "Export" button, this will generate an XML file that you can import using the "Import" button.  If this works
 	then great! you're good to go.  Otherwise you will need to set it up manually:
 	
 	8) Enter the connection string and click Connect, this will populate the Collections window and the Database drop-down
 	9) Select the Database you wish to use from the database drop down.
-	10) Click the "Add" button next to "Assemblies" and locate TripLinkIO.dll, once this is loaded the types window will be populated with the exported types
+	10) Click the "Add" button next to "Assemblies" and locate your application dlls, once this is loaded the types window will be populated with the exported types
 	10a) If you have imported settings but some assemblies could not be located, double click on the assembly in the "Assemblies" text box to locate it.
 	
 	11) You must now map collections to types so that the driver will know how to serialize the collections.
 		1) Click on the CollectionType box next to the collection you want to map
-		2) Find and double-click the type of that collection.  Example: for "settings" you want to find "GDSX.TripLink.IO.Settings.SettingBase"
+		2) Find and double-click the type of that collection.
 		or 2) Any collection can be mapped to "MongoDB.Bson.BsonDocument", all the information will be there but it is difficult to work with in queries.
 		
 	12)	Add Custom Serializers: There may be some custom serializers for certain types that the driver needs to know about.
