@@ -538,6 +538,20 @@ using GDSX.Externals.LinqPad.Driver;
             }
                 
         }
+
+        /// <summary>
+        /// Overrides the members to display for a given object, or returns null to use the default objects
+        /// for display.
+        /// </summary>
+        /// <param name="objectToWrite"></param>
+        /// <returns></returns>
+        public override LINQPad.ICustomMemberProvider GetCustomDisplayMemberProvider(object objectToWrite)
+        {
+            if(objectToWrite != null && objectToWrite is BsonValue)
+                return new BsonValueMemberProvider((BsonValue)objectToWrite);
+
+            return null;
+        }
     }
 
    
