@@ -13,6 +13,11 @@ namespace GDSX.Externals.LinqPad.Driver
     public class BsonValueMemberProvider : LINQPad.ICustomMemberProvider
     {
         private static readonly HashSet<string> IgnoredProperties;
+        private static readonly HashSet<Type> IgnoredTypes = new HashSet<Type>
+            {
+                typeof(BsonDocument),
+                typeof(BsonArray)
+            };
 
         private BsonValue mValue;
         private PropertyInfo[] mPropsToWrite;
@@ -69,6 +74,13 @@ namespace GDSX.Externals.LinqPad.Driver
             IgnoredProperties = ignored;
         }
 
+        public static bool ShouldProvide(object obj)
+        {
+            return obj != null &&
+                obj is BsonValue &&
+                !IgnoredTypes.Contains(obj.GetType());
+        }
+
         private static void AddRange(HashSet<string> set, IEnumerable<string> values)
         {
             foreach (var value in values)
@@ -82,7 +94,7 @@ namespace GDSX.Externals.LinqPad.Driver
         {
             this.mValue = value;
             this.mPropsToWrite = mValue.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public)
-                .Where(p => !IgnoredProperties.Contains(p.Name))
+                .Where(p => !IgnoredProperties.Contains(p.Name) && p.GetIndexParameters().Length == 0)
                 .ToArray();
         }
 
@@ -101,5 +113,7 @@ namespace GDSX.Externals.LinqPad.Driver
         {
             return mPropsToWrite.Select(p => p.GetValue(this.mValue, null));
         }
+
+
     }
 }

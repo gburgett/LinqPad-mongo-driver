@@ -17,7 +17,8 @@ namespace GDSX.Externals.LinqPad.Driver
 {
     public partial class ConnectionDialog : Form
     {
-        private readonly ConnectionProperties mConnection;
+        private ConnectionProperties mConnection;
+        private ConnectionAdditionalOptions mAdditionalOptions;
         private readonly bool mIsNewConnection;
 
         private bool mCloseAlreadyValidated = false;
@@ -32,9 +33,13 @@ namespace GDSX.Externals.LinqPad.Driver
 
         private Dictionary<string, List<CollectionTypeMapping>> mDatabases = new Dictionary<string, List<CollectionTypeMapping>>();
 
+        private IXElementSerializer<ConnectionProperties> connectionPropertiesSerializer = new ConnectionPropertiesSerializer();
+
         public ConnectionDialog(ConnectionProperties props, bool isNewConnection, Func<string, Assembly> loadSafely)
         {
             this.mConnection = props;
+            this.mAdditionalOptions = props.AdditionalOptions.Clone();
+
             this.mIsNewConnection = isNewConnection;
             this.loadSafely = loadSafely;
 
@@ -57,11 +62,13 @@ namespace GDSX.Externals.LinqPad.Driver
             var mongo = MongoServer.Create(connString);
             try
             {
+                HashSet<string> seenDBs = new HashSet<string>();
 
-                var typeLookup = this.LoadedTypes.ToLookup(x => x.Name);
-
+                //Load up each database by name, retrieving the current collection mappings.
                 foreach (string name in mongo.GetDatabaseNames())
                 {
+                    seenDBs.Add(name);
+
                     List<CollectionTypeMapping> mappings = null;
                     if (!this.mDatabases.TryGetValue(name, out mappings))
                     {
@@ -69,13 +76,16 @@ namespace GDSX.Externals.LinqPad.Driver
                         this.mDatabases[name] = mappings;
                     }
 
-                    var lookup = mappings.ToDictionary(x => x.CollectionName);
+                    var mappingLookup = mappings.ToDictionary(x => x.CollectionName);
+                    HashSet<string> seenCollections = new HashSet<string>();
 
-                    var db = mongo.GetDatabase(name);
+                    MongoDatabase db = mongo.GetDatabase(name);
                     foreach (string collectionName in db.GetCollectionNames())
                     {
+                        seenCollections.Add(collectionName);
+
                         CollectionTypeMapping mapping = null;
-                        if (!lookup.TryGetValue(collectionName, out mapping))
+                        if (!mappingLookup.TryGetValue(collectionName, out mapping))
                         {
                             mapping = new CollectionTypeMapping
                                           {
@@ -84,17 +94,32 @@ namespace GDSX.Externals.LinqPad.Driver
                             mappings.Add(mapping);
                         }
 
-                        if (mapping.CollectionType == null)
-                        {
-                            //see if we can't figure out the type for the collection
-                            Type t = TryGetTypeForCollection(db, collectionName, typeLookup);
-                            if (t != null)
-                            {
-                                mapping.CollectionType = t.ToString();
-                            }
+                        ////wastes DB hits for most of our usage.
+                        //if (mapping.CollectionType == null)
+                        //{
+                        //    //see if we can't figure out the type for the collection
+                        //    Type t = TryGetTypeForCollection(db, collectionName, typeLookup);
+                        //    if (t != null)
+                        //    {
+                        //        mapping.CollectionType = t.ToString();
+                        //    }
 
-                        }
+                        //}
                     }
+
+                    //trim collections that don't exist in the DB
+                    for(int i = mappings.Count - 1; i >= 0; i--)
+                    {
+                        if(!seenCollections.Contains(mappings[i].CollectionName))
+                            mappings.RemoveAt(i);
+                    }
+                }
+
+                //trim all DB's that don't exist in the connection
+                foreach (string dbName in this.mDatabases.Keys.ToArray())
+                {
+                    if (!seenDBs.Contains(dbName))
+                        this.mDatabases.Remove(dbName);
                 }
             }
             finally
@@ -111,26 +136,27 @@ namespace GDSX.Externals.LinqPad.Driver
                 this.dgCollectionTypes.DataSource = null;
         }
 
-        //issues a query to the DB to see if there's some type info there.
-        private Type TryGetTypeForCollection(MongoDatabase db, string collectionName, ILookup<string, Type> typeLookup)
-        {
+        //// issues a query to the DB to see if there's some type info there.
+        //// Wastes DB hits for most of our usage
+        //private Type TryGetTypeForCollection(MongoDatabase db, string collectionName, ILookup<string, Type> typeLookup)
+        //{
             
-            var ret = db.Eval(string.Format("db['{0}'].findOne({{}}, {{'_t':1}})", collectionName));
-            BsonElement typeElement;
-            try
-            {
-                if (ret.AsBsonDocument.TryGetElement("_t", out typeElement))
-                {
-                    string type1 = typeElement.Value.AsBsonArray.First().AsString;
-                    return typeLookup[type1].SingleOrDefault();
-                }
-            }catch(Exception ex)
-            {
-                //leave it as default
-            }
+        //    var ret = db.Eval(string.Format("db['{0}'].findOne({{}}, {{'_t':1}})", collectionName));
+        //    BsonElement typeElement;
+        //    try
+        //    {
+        //        if (ret.AsBsonDocument.TryGetElement("_t", out typeElement))
+        //        {
+        //            string type1 = typeElement.Value.AsBsonArray.First().AsString;
+        //            return typeLookup[type1].SingleOrDefault();
+        //        }
+        //    }catch(Exception ex)
+        //    {
+        //        //leave it as default
+        //    }
 
-            return default(Type);
-        }
+        //    return default(Type);
+        //}
 
         #region event handlers
         private void ConnectionDialog_FormClosing(object sender, FormClosingEventArgs e)
@@ -252,7 +278,7 @@ namespace GDSX.Externals.LinqPad.Driver
         private void btnAddSerializer_Click(object sender, EventArgs e)
         {
             var types = this.LoadedTypes.Where(x => typeof(IBsonSerializer).IsAssignableFrom(x));
-            using (var frm = new TypeSelector(this.MakeTree(this.LoadedTypes).ToArray(), (this.MakeTree(types).ToArray())))
+            using (var frm = new CustomSerializerSelector(MakeTree(this.LoadedTypes).ToArray(), (MakeTree(types).ToArray())))
             {
                 var result = frm.ShowDialog();
                 if (result == System.Windows.Forms.DialogResult.OK)
@@ -303,7 +329,8 @@ namespace GDSX.Externals.LinqPad.Driver
                         var el = new XElement("Properties");
                         var working = new ConnectionProperties();
                         this.Populate(working);
-                        working.Serialize(el);
+
+                        connectionPropertiesSerializer.Serialize(el, working);
                         doc.Add(el);
 
                         using (var writer = System.Xml.XmlWriter.Create(chooser.OpenFile(), new System.Xml.XmlWriterSettings
@@ -334,14 +361,14 @@ namespace GDSX.Externals.LinqPad.Driver
 
                     if (result == System.Windows.Forms.DialogResult.OK)
                     {
-                        var props = new ConnectionProperties();
+                        ConnectionProperties props;
                         using (var reader = System.Xml.XmlReader.Create(chooser.OpenFile(), new System.Xml.XmlReaderSettings
                                                                                                 {
                                                                                                     CloseInput = true
                                                                                                 }))
                         {
                             var doc = XDocument.Load(reader);
-                            props.Deserialize(doc.Element("Properties"));
+                            props = connectionPropertiesSerializer.Deserialize(doc.Element("Properties"));
                         }
 
                         this.LoadFrom(props);
@@ -352,6 +379,49 @@ namespace GDSX.Externals.LinqPad.Driver
                 MessageBox.Show("Import failed: " + ex.ToString());
             }
         }
+
+        private void additionalOptionsToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            ConnectionProperties props = new ConnectionProperties();
+            this.Populate(props);
+
+            using (var frm = new AdditionalOptions(props, this.LoadedTypes))
+            {
+                frm.Name = "Additional Options";
+                DialogResult result = frm.ShowDialog();
+                if (result == DialogResult.OK)
+                {
+                    this.mAdditionalOptions = frm.SelectedOptions;
+                }
+            }
+        }
+
+        private void loadToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            btnImport_Click(sender, e);
+        }
+
+        private void exportToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            btnExport_Click(sender, e);
+        }
+
+        private void clearToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.mConnection = new ConnectionProperties();
+            this.LoadFrom(this.mConnection);
+        }
+
+        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.btnSave_Click(sender, e);
+        }
+
+        private void cancelToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.btnCancel_Click(sender, e);
+        }
+
         #endregion
 
         /// <summary>
@@ -381,6 +451,8 @@ namespace GDSX.Externals.LinqPad.Driver
             props.CustomSerializers = new Dictionary<string, string>();
             foreach (var pair in this.SerializerMappings)
                 props.CustomSerializers.Add(pair.Key.ToString(), pair.Value.ToString());
+
+            props.AdditionalOptions = this.mAdditionalOptions;
         }
         
         /// <summary>
@@ -446,6 +518,8 @@ namespace GDSX.Externals.LinqPad.Driver
                 }
             this.lbCustomSerializers.Items.AddRange(this.SerializerMappings.Select(pair => new SerializerMappingWrapper { Type = pair.Key, Serializer = pair.Value }).Cast<object>().ToArray());
 
+            this.mAdditionalOptions = props.AdditionalOptions;
+
             UpdateLoadedAssemblies();
         }
 
@@ -504,8 +578,16 @@ namespace GDSX.Externals.LinqPad.Driver
             this.tvKnownTypes.Nodes.AddRange(MakeTree(this.LoadedTypes).ToArray());
         }
 
-        //Makes a TreeView tree of nodes out of the sorted enumerable of types
-        private IEnumerable<TreeNode> MakeTree(IEnumerable<Type> typeNames)
+        /// <summary>
+        /// Makes a TreeView tree of nodes out of the sorted enumerable of types.  The <see cref="TreeNode.Tag"/>
+        /// property contains the <see cref="Type"/> object of the represented type, or null if the node is an
+        /// intermediate node that does not represent a type.
+        /// </summary>
+        /// <param name="typeNames">An ordered enumeration of <see cref="Type"/> objects.  Unfortunately this
+        /// can't be an <see cref="IOrderedEnumerable{T}"/> because <see cref="SortedSet{T}"/> does not implement
+        /// that interface.</param>
+        /// <returns>An array of <see cref="TreeNode"/> objects suitable for a <see cref="TreeView"/>.</returns>
+        public static TreeNode[] MakeTree(IEnumerable<Type> typeNames)
         {
             List<TreeNode> nodes = new List<TreeNode>();
             string[] currentPath = new string[0];
@@ -558,7 +640,7 @@ namespace GDSX.Externals.LinqPad.Driver
                 currentNode.Text = t.FullName;
             }
 
-            return nodes;
+            return nodes.ToArray();
         }
 
         /// <summary>
@@ -659,8 +741,7 @@ namespace GDSX.Externals.LinqPad.Driver
                 }
             }
         }
-        
-        
+
     }
     
     

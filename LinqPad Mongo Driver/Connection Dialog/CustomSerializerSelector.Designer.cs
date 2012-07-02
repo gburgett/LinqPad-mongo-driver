@@ -1,6 +1,6 @@
 ﻿namespace GDSX.Externals.LinqPad.Driver
 {
-    partial class TypeSelector
+    partial class CustomSerializerSelector
     {
         /// <summary>
         /// Required designer variable.
@@ -140,7 +140,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(811, 384);
             this.Controls.Add(this.tableLayoutPanel1);
-            this.Name = "TypeSelector";
+            this.Name = "CustomSerializerSelector";
             this.Text = "TypeSelector";
             this.tableLayoutPanel1.ResumeLayout(false);
             this.tableLayoutPanel1.PerformLayout();

@@ -9,13 +9,13 @@ using System.Windows.Forms;
 
 namespace GDSX.Externals.LinqPad.Driver
 {
-    public partial class TypeSelector : Form
+    public partial class CustomSerializerSelector : Form
     {
         public Type SelectedType { get; private set; }
 
         public Type SelectedSerializer { get; private set; }
 
-        public TypeSelector(TreeNode[] allTypes, TreeNode[] allSerializers)
+        public CustomSerializerSelector(TreeNode[] allTypes, TreeNode[] allSerializers)
         {
             InitializeComponent();
 

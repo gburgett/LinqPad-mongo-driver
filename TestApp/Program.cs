@@ -30,7 +30,7 @@ namespace TestApp
                 }
 
                 var cxi = new FakeConnection();
-                props.Serialize(cxi.DriverData);
+                new ConnectionPropertiesSerializer().Serialize(cxi.DriverData, props);
 
                 var driver = new MongoDynamicDataContextDriver();
 

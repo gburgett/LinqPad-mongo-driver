@@ -71,31 +71,49 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BsonValueMemberProvider.cs" />
-    <Compile Include="ConnectionDialog.cs">
+    <Compile Include="Connection Dialog\AdditionalOptions.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="ConnectionDialog.Designer.cs">
+    <Compile Include="Connection Dialog\AdditionalOptions.Designer.cs">
+      <DependentUpon>AdditionalOptions.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Connection Dialog\ConnectionDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Connection Dialog\ConnectionDialog.Designer.cs">
       <DependentUpon>ConnectionDialog.cs</DependentUpon>
     </Compile>
-    <Compile Include="ConnectionProperties.cs" />
-    <Compile Include="TypeSelector.cs">
+    <Compile Include="Connection Dialog\SingleTypeSelector.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="TypeSelector.Designer.cs">
-      <DependentUpon>TypeSelector.cs</DependentUpon>
+    <Compile Include="Connection Dialog\SingleTypeSelector.Designer.cs">
+      <DependentUpon>SingleTypeSelector.cs</DependentUpon>
     </Compile>
+    <Compile Include="ConnectionProperties.cs" />
+    <Compile Include="Connection Dialog\CustomSerializerSelector.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Connection Dialog\CustomSerializerSelector.Designer.cs">
+      <DependentUpon>CustomSerializerSelector.cs</DependentUpon>
+    </Compile>
+    <EmbeddedResource Include="Connection Dialog\AdditionalOptions.resx">
+      <DependentUpon>AdditionalOptions.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Connection Dialog\SingleTypeSelector.resx">
+      <DependentUpon>SingleTypeSelector.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="InterceptorCollection.cs" />
     <Compile Include="MongoDynamicDataContextDriver.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <EmbeddedResource Include="TypeSelector.resx">
-      <DependentUpon>TypeSelector.cs</DependentUpon>
+    <EmbeddedResource Include="Connection Dialog\CustomSerializerSelector.resx">
+      <DependentUpon>CustomSerializerSelector.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="ConnectionDialog.resx">
+    <EmbeddedResource Include="Connection Dialog\ConnectionDialog.resx">
       <DependentUpon>ConnectionDialog.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>

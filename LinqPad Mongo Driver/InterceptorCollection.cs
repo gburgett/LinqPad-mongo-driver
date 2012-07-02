@@ -28,6 +28,12 @@ namespace GDSX.Externals.LinqPad.Driver
         /// </summary>
         public bool TrackChanges { get; set; }
 
+        /// <summary>
+        /// If true, allows saving using the <see cref="MongoCollection.Save{TNominalType}(TNominalType)"/>
+        /// method.  If false, throws an exception.
+        /// </summary>
+        public bool AllowSave { get; set; }
+
         private Dictionary<object, U> mToUpdate = new Dictionary<object, U>();
         private Dictionary<object, BsonDocument> mOriginalDocuments = new Dictionary<object, BsonDocument>();
         public IEnumerable<U> ToUpdate { get { return this.mToUpdate.Where(x => HasChanged(x.Value, mOriginalDocuments[x.Key])).Select(x => x.Value); } }
@@ -44,13 +50,15 @@ namespace GDSX.Externals.LinqPad.Driver
             this.mCollection = coll;
             this.writer = writer;
             this.TrackChanges = false;
+            this.AllowSave = false;
         }
 
         #region Change Tracking
 
         /// <summary>
         /// Submits all changes to queried objects by calling Save on the objects given by
-        /// <see cref="ToUpdate"/>
+        /// <see cref="ToUpdate"/>.  If <see cref="AllowSave"/> is false, this will throw an
+        /// exception if there are any items in ToUpdate.
         /// </summary>
         public int SubmitChanges()
         {
@@ -245,6 +253,12 @@ namespace GDSX.Externals.LinqPad.Driver
 
         public override SafeModeResult Save(Type nominalType, object document, MongoInsertOptions options)
         {
+            if(!this.AllowSave)
+            {
+                throw new MongoDB.Driver.MongoCommandException(
+                    string.Format("Cannot save document {0}, this collection does not allow saving objects of type {1}", document, nominalType));
+            }
+
             if (writer != null)
             {
                 this.writer.WriteLine("Save:");

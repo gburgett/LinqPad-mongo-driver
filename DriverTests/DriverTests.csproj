@@ -75,6 +75,8 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConnectionPropertiesEqualityTests.cs" />
+    <Compile Include="ConnectionPropertiesSerializationTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TypedDataContext_InterceptorTest.cs" />
   </ItemGroup>

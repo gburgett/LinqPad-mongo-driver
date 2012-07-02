@@ -12,6 +12,7 @@ using Microsoft.CSharp;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson.Serialization.Conventions;
 using MongoDB.Driver;
 
 
@@ -29,14 +30,15 @@ namespace GDSX.Externals.LinqPad.Driver
         
         private static readonly PluralizationService pluralizationService = PluralizationService.CreateService(new CultureInfo("en-US"));
 
+        private static readonly IXElementSerializer<ConnectionProperties> propsSerializer = new ConnectionPropertiesSerializer(); 
+
         /// <summary>
         /// Gets the arguments that are passed to the dynamically instantiated driver
         /// </summary>
         /// <param name="cxInfo">the serialized connection properties.</param>
         public override object[] GetContextConstructorArguments(IConnectionInfo cxInfo)
         {
-            var props = new ConnectionProperties();
-            props.Deserialize(cxInfo.DriverData);
+            var props = propsSerializer.Deserialize(cxInfo.DriverData);
 
             // dynamically create a Mongo database object
             object mongo = MongoServer.Create(props.ConnectionString);
@@ -68,10 +70,14 @@ namespace GDSX.Externals.LinqPad.Driver
         /// <returns>true if the connection dialog completed successfully</returns>
         public override bool ShowConnectionDialog(IConnectionInfo cxInfo, bool isNewConnection)
         {
-            var props = new ConnectionProperties();
-            if(!isNewConnection)
+            ConnectionProperties props;
+            if(isNewConnection)
             {
-                props.Deserialize(cxInfo.DriverData);
+                props = new ConnectionProperties();
+            }
+            else
+            {
+                props = propsSerializer.Deserialize(cxInfo.DriverData);
             }
 
             using(var form = new ConnectionDialog(props, isNewConnection, LoadAssemblySafely))
@@ -80,7 +86,7 @@ namespace GDSX.Externals.LinqPad.Driver
    
                 if(result == System.Windows.Forms.DialogResult.OK)
                 {
-                    props.Serialize(cxInfo.DriverData);
+                    propsSerializer.Serialize(cxInfo.DriverData, props);
                     cxInfo.DisplayName = string.Format("{0} ({1})", props.SelectedDatabase, props.ConnectionString);
                     return true;
                 }
@@ -110,8 +116,7 @@ namespace GDSX.Externals.LinqPad.Driver
         /// <returns>A tree of ExplorerItem objects which is shown to the user in LinqPad's UI</returns>
         public override List<ExplorerItem> GetSchemaAndBuildAssembly(IConnectionInfo cxInfo, AssemblyName assemblyToBuild, ref string nameSpace, ref string typeName)
         {
-            var props = new ConnectionProperties();
-            props.Deserialize(cxInfo.DriverData);
+            var props = propsSerializer.Deserialize(cxInfo.DriverData);
             
             List<Assembly> assemblies = 
                 props.AssemblyLocations.Select(LoadAssemblySafely).ToList();
@@ -289,7 +294,13 @@ using GDSX.Externals.LinqPad.Driver;
                         "\tprivate Interceptor<{0}> m{2};\r\n" + 
                         "\tpublic IQueryable<{0}> {2} {{ get {{ return this.m{2}.AsQueryable<{0}>().Select(x => x); }} }}\n", type.FullName, name, pluralizedName));
 
+                    //generate initialization strings
                     initializations.Add(string.Format("\t\tthis.m{2} = new Interceptor<{0}>(this.db.GetCollection<{0}>(\"{1}\"), this.SqlTabWriter);", type.FullName, name, pluralizedName));
+                    if(props.AdditionalOptions.AllowSaveForAllTypes || 
+                        props.AdditionalOptions.ExplicitSaveAllowedTypes.Contains(type.ToString()))
+                    {
+                        initializations.Add(string.Format("\t\tthis.m{0}.AllowSave = true;", pluralizedName));
+                    }
 
                     writer.WriteLine(string.Format(
                         "\tpublic Interceptor<{0}> {2}Collection {{ get {{ return this.m{2}; }} }}\n", type.FullName, name, pluralizedName));
@@ -460,8 +471,7 @@ using GDSX.Externals.LinqPad.Driver;
         /// <returns>The locations of the assemblies to be loaded</returns>
         public override IEnumerable<string> GetAssembliesToAdd(IConnectionInfo cxInfo)
         {
-            ConnectionProperties props = new ConnectionProperties();
-            props.Deserialize(cxInfo.DriverData);
+            ConnectionProperties props = propsSerializer.Deserialize(cxInfo.DriverData);
 
             return new []
                        {
@@ -478,8 +488,7 @@ using GDSX.Externals.LinqPad.Driver;
         /// <returns>The namespaces that should be imported as strings</returns>
         public override IEnumerable<string> GetNamespacesToAdd(IConnectionInfo cxInfo)
         {
-            ConnectionProperties props = new ConnectionProperties();
-            props.Deserialize(cxInfo.DriverData);
+            ConnectionProperties props = propsSerializer.Deserialize(cxInfo.DriverData);
 
             return new []
                 {
@@ -519,12 +528,14 @@ using GDSX.Externals.LinqPad.Driver;
             MethodInfo init = context.GetType().GetMethod("InitCollections", BindingFlags.Instance | BindingFlags.Public);
             init.Invoke(context, new object[] { });
 
-            var props = new ConnectionProperties();
-            props.Deserialize(cxInfo.DriverData);
+            ConnectionProperties props = propsSerializer.Deserialize(cxInfo.DriverData);
+
 
             if(props.CustomSerializers != null)
             {
-                var assemblies = props.AssemblyLocations.Select(LoadAssemblySafely).ToList();
+                List<Assembly> assemblies =
+                    props.AssemblyLocations.Select(LoadAssemblySafely).ToList();
+
                 foreach (var pair in props.CustomSerializers)
                 {
                     var type = assemblies.Select(a => a.GetType(pair.Key)).FirstOrDefault(x => x != null);
@@ -536,9 +547,18 @@ using GDSX.Externals.LinqPad.Driver;
                     BsonSerializer.RegisterSerializer(type, (IBsonSerializer)Activator.CreateInstance(serializer));
                 }
             }
-                
+
+            if (props.AdditionalOptions.BlanketIgnoreExtraElements)
+            {
+                var conventions = new ConventionProfile();
+                conventions.SetIgnoreExtraElementsConvention(new AlwaysIgnoreExtraElementsConvention());
+
+                BsonClassMap.RegisterConventions(conventions, t => true);
+            }
         }
 
+        /*
+         *  Removed - override does not like to show the tostring, might make it optional in the future.
         /// <summary>
         /// Overrides the members to display for a given object, or returns null to use the default objects
         /// for display.
@@ -547,11 +567,11 @@ using GDSX.Externals.LinqPad.Driver;
         /// <returns></returns>
         public override LINQPad.ICustomMemberProvider GetCustomDisplayMemberProvider(object objectToWrite)
         {
-            if(objectToWrite != null && objectToWrite is BsonValue)
+            if(BsonValueMemberProvider.ShouldProvide(objectToWrite))
                 return new BsonValueMemberProvider((BsonValue)objectToWrite);
 
             return null;
-        }
+        }*/
     }
 
    
