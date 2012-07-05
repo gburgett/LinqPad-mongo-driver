@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using LINQPad.Extensibility.DataContext;
 using Microsoft.CSharp;
 using MongoDB.Bson;
@@ -117,15 +118,26 @@ namespace GDSX.Externals.LinqPad.Driver
         public override List<ExplorerItem> GetSchemaAndBuildAssembly(IConnectionInfo cxInfo, AssemblyName assemblyToBuild, ref string nameSpace, ref string typeName)
         {
             var props = propsSerializer.Deserialize(cxInfo.DriverData);
-            
             List<Assembly> assemblies = 
                 props.AssemblyLocations.Select(LoadAssemblySafely).ToList();
 
+            //refresh the init query
+            if(props.InitializationQuery != null)
+            {
+                props.InitializationQuery = LinqPadQuery.CreateFrom(props.InitializationQuery.Location);
+            }
+
             var code = new[] { GenerateDynamicCode(props, assemblies, nameSpace, typeName) }
                         .Concat(GetStaticCodeFiles());
+            //write inner class CustomInitQuery
+            if (props.InitializationQuery != null)
+            {
+                code = code.Concat(new[] { this.GenerateCustomInitQuery(props.InitializationQuery, nameSpace) } );
+            }
+                        
 
             BuildAssembly(props, code, assemblyToBuild, GetDriverFolder);
-
+            
             return BuildSchema(props, assemblies);
         }
 
@@ -257,6 +269,30 @@ using GDSX.Externals.LinqPad.Driver;
     public TextWriter SqlTabWriter { get; set; }
 ");
 
+            if(props.InitializationQuery != null)
+            {
+                writer.WriteLine(
+@"
+    private CustomInitQuery mCustomInitializer;
+    public CustomInitQuery CustomInitializer 
+    { 
+        get
+        {
+            return this.mCustomInitializer;
+        }
+    }
+
+    public void DoCustomInit(ConnectionProperties props)
+    {
+        if(mCustomInitializer == null)
+        {
+            mCustomInitializer = new CustomInitQuery();
+            mCustomInitializer.Initialize(props);
+        }
+    }
+");
+            }
+
             writer.WriteLine(string.Format(
                     "\tpublic String ConnectionString {{ get {{ return \"{0}\"; }} }}\n", props.ConnectionString));
             
@@ -365,7 +401,6 @@ using GDSX.Externals.LinqPad.Driver;
             
             writer.WriteLine("\t}");
 
-                
             // write type closing brace 
             writer.WriteLine("}");
 
@@ -396,6 +431,30 @@ using GDSX.Externals.LinqPad.Driver;
                                         }
                                         return s;
                                     });
+        }
+
+        public string GenerateCustomInitQuery(LinqPadQuery query, string nameSpace)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (var ns in query.Namespaces)
+            {
+                sb.Append("using ").Append(ns).AppendLine(";");
+            }
+            sb.AppendFormat(@"
+namespace {1}
+{{
+    public class CustomInitQuery
+    {{
+        public CustomInitQuery()
+        {{
+
+        }}
+
+        {0}
+    }}
+}}", query.Query, nameSpace);
+
+            return sb.ToString();
         }
 
         private string DoPluralize(string s)
@@ -447,11 +506,14 @@ using GDSX.Externals.LinqPad.Driver;
             CompilerResults results;
             using (var codeProvider = new CSharpCodeProvider(new Dictionary<string, string>() { { "CompilerVersion", "v4.0" } }))
             {
-                var assemblyNames = new List<string>();
+                var assemblyNames = new HashSet<string>(props.AssemblyLocations, new AssemblyPathEqualityComparer());
+
+                //add additional assemblies which may not already exist in AssemblyLocations
                 assemblyNames.AddRange("System.dll System.Core.dll".Split());
-                assemblyNames.AddRange(props.AssemblyLocations);
                 assemblyNames.Add(Path.Combine(GetDriverFolder(), "MongoDB.Driver.dll"));
                 assemblyNames.Add(Path.Combine(GetDriverFolder(), "MongoDB.Bson.dll"));
+                if(props.InitializationQuery != null)
+                    assemblyNames.Add(Path.Combine(GetDriverFolder(), "LinqPadMongoDriver.dll"));
                 
                 var options = new CompilerParameters(
                     assemblyNames.ToArray(),
@@ -473,12 +535,15 @@ using GDSX.Externals.LinqPad.Driver;
         {
             ConnectionProperties props = propsSerializer.Deserialize(cxInfo.DriverData);
 
-            return new []
-                       {
-                            Path.Combine(GetDriverFolder(), "MongoDB.Driver.dll"),
-                            Path.Combine(GetDriverFolder(), "MongoDB.Bson.dll")
-                       }
-                       .Concat(props.AssemblyLocations);
+            var assemblyNames = new HashSet<string>(props.AssemblyLocations, new AssemblyPathEqualityComparer());
+
+            //add additional assemblies which may not already exist in AssemblyLocations
+            assemblyNames.Add(Path.Combine(GetDriverFolder(), "MongoDB.Driver.dll"));
+            assemblyNames.Add(Path.Combine(GetDriverFolder(), "MongoDB.Bson.dll"));
+            if (props.InitializationQuery != null)
+                assemblyNames.Add(Path.Combine(GetDriverFolder(), "LinqPadMongoDriver.dll"));
+
+            return assemblyNames;
         }
 
         /// <summary>
@@ -490,24 +555,39 @@ using GDSX.Externals.LinqPad.Driver;
         {
             ConnectionProperties props = propsSerializer.Deserialize(cxInfo.DriverData);
 
-            return new []
+            return GetNamespacesToAdd(props);
+        }
+
+        /// <summary>
+        /// Gets the additional namespaces that should be imported for queries using this driver
+        /// </summary>
+        /// <param name="props">the deserialized ConnectionProperties object.</param>
+        /// <returns>The namespaces that should be imported as strings</returns>
+        public static IEnumerable<string>  GetNamespacesToAdd(ConnectionProperties props)
+        {
+            IEnumerable<string> ret = new[]
                 {
                     "MongoDB.Driver.Builders",
                     "MongoDB.Driver",
-                }.Concat(
-            props.CollectionTypeMappings[props.SelectedDatabase].Select(x => x.CollectionType)
-                .Where(x => !string.IsNullOrEmpty(x))
-                .Select(name =>
-                            {
-                                name = name.Split(',').First();
-                                int lastDot = name.LastIndexOf('.');
-                                if (lastDot <= -1)
-                                    return null;
+                };
 
-                                return name.Substring(0, lastDot);
-                            })
-                .Where(x => !string.IsNullOrEmpty(x)))
-                .Distinct();
+            if(!string.IsNullOrEmpty(props.SelectedDatabase))
+            {
+                ret = ret.Concat(
+                props.CollectionTypeMappings[props.SelectedDatabase].Select(x => x.CollectionType)
+                    .Where(x => !string.IsNullOrEmpty(x))
+                    .Select(name =>
+                    {
+                        name = name.Split(',').First();
+                        int lastDot = name.LastIndexOf('.');
+                        if (lastDot <= -1)
+                            return null;
+
+                        return name.Substring(0, lastDot);
+                    }).Where(x => !string.IsNullOrEmpty(x)));
+            }
+                
+            return ret.Distinct();
         }
 
         /// <summary>
@@ -521,16 +601,23 @@ using GDSX.Externals.LinqPad.Driver;
             base.InitializeContext(cxInfo, context, executionManager);
 
             //since the type is generated dynamically we can only access it by reflection
+            ConnectionProperties props = propsSerializer.Deserialize(cxInfo.DriverData);
 
             PropertyInfo pinf = context.GetType().GetProperty("SqlTabWriter", BindingFlags.Instance | BindingFlags.Public);
             pinf.SetValue(context, executionManager.SqlTranslationWriter, null);
 
+            if (props.InitializationQuery != null)
+            {
+                
+                MethodInfo customInitialize = context.GetType().GetMethod("DoCustomInit", new[] { typeof(ConnectionProperties) });
+                customInitialize.Invoke(context, new object[] { props });
+            }
+
             MethodInfo init = context.GetType().GetMethod("InitCollections", BindingFlags.Instance | BindingFlags.Public);
             init.Invoke(context, new object[] { });
 
-            ConnectionProperties props = propsSerializer.Deserialize(cxInfo.DriverData);
-
-
+            
+            
             if(props.CustomSerializers != null)
             {
                 List<Assembly> assemblies =

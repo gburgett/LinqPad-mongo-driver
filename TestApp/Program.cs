@@ -36,7 +36,10 @@ namespace TestApp
 
                 
                 List<Assembly> assemblies = props.AssemblyLocations.Select(Assembly.LoadFrom).ToList();
-                var code = driver.GetStaticCodeFiles().Concat(new string[] {driver.GenerateDynamicCode(props, assemblies, "", "driver")});
+                var code = driver.GetStaticCodeFiles()
+                    .Concat(new string[] {driver.GenerateDynamicCode(props, assemblies, "", "driver")});
+                if(props.InitializationQuery != null)
+                    code = code.Concat(new string[]{driver.GenerateCustomInitQuery(props.InitializationQuery, "driver")});
 
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
                 Console.WriteLine("------------------------------------------------");
@@ -76,8 +79,6 @@ namespace TestApp
             }
             finally{
                 Console.ForegroundColor = old;
-
-                Console.ReadLine();
             }
         }
 

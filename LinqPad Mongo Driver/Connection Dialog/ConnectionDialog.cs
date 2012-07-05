@@ -1,15 +1,15 @@
 ﻿using System;
+using System.CodeDom.Compiler;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Windows.Forms;
+using System.Xml;
 using System.Xml.Linq;
-using MongoDB.Bson;
+using Microsoft.CSharp;
 using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 
@@ -19,6 +19,8 @@ namespace GDSX.Externals.LinqPad.Driver
     {
         private ConnectionProperties mConnection;
         private ConnectionAdditionalOptions mAdditionalOptions;
+        private LinqPadQuery mInitializationQuery;
+
         private readonly bool mIsNewConnection;
 
         private bool mCloseAlreadyValidated = false;
@@ -33,7 +35,7 @@ namespace GDSX.Externals.LinqPad.Driver
 
         private Dictionary<string, List<CollectionTypeMapping>> mDatabases = new Dictionary<string, List<CollectionTypeMapping>>();
 
-        private IXElementSerializer<ConnectionProperties> connectionPropertiesSerializer = new ConnectionPropertiesSerializer();
+        private readonly IXElementSerializer<ConnectionProperties> connectionPropertiesSerializer = new ConnectionPropertiesSerializer();
 
         public ConnectionDialog(ConnectionProperties props, bool isNewConnection, Func<string, Assembly> loadSafely)
         {
@@ -44,6 +46,8 @@ namespace GDSX.Externals.LinqPad.Driver
             this.loadSafely = loadSafely;
 
             InitializeComponent();
+
+            this.SetLoadedQueryName(null);
 
             if (!this.mIsNewConnection)
                 this.LoadFrom(props);
@@ -135,28 +139,6 @@ namespace GDSX.Externals.LinqPad.Driver
             else
                 this.dgCollectionTypes.DataSource = null;
         }
-
-        //// issues a query to the DB to see if there's some type info there.
-        //// Wastes DB hits for most of our usage
-        //private Type TryGetTypeForCollection(MongoDatabase db, string collectionName, ILookup<string, Type> typeLookup)
-        //{
-            
-        //    var ret = db.Eval(string.Format("db['{0}'].findOne({{}}, {{'_t':1}})", collectionName));
-        //    BsonElement typeElement;
-        //    try
-        //    {
-        //        if (ret.AsBsonDocument.TryGetElement("_t", out typeElement))
-        //        {
-        //            string type1 = typeElement.Value.AsBsonArray.First().AsString;
-        //            return typeLookup[type1].SingleOrDefault();
-        //        }
-        //    }catch(Exception ex)
-        //    {
-        //        //leave it as default
-        //    }
-
-        //    return default(Type);
-        //}
 
         #region event handlers
         private void ConnectionDialog_FormClosing(object sender, FormClosingEventArgs e)
@@ -357,6 +339,9 @@ namespace GDSX.Externals.LinqPad.Driver
             {
                 using (var chooser = new OpenFileDialog())
                 {
+                    chooser.DefaultExt = ".xml";
+                    chooser.Filter = "Xml Files|*.xml|All Files|*.*";
+
                     var result = chooser.ShowDialog();
 
                     if (result == System.Windows.Forms.DialogResult.OK)
@@ -422,13 +407,255 @@ namespace GDSX.Externals.LinqPad.Driver
             this.btnCancel_Click(sender, e);
         }
 
+        private void createShellQueryToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            var props = new ConnectionProperties();
+            this.Populate(props);
+
+            string contents = this.CreateShellQuery(props);
+            using (var chooser = new SaveFileDialog())
+            {
+                chooser.AddExtension = true;
+                chooser.DefaultExt = ".linq";
+                chooser.Filter = "LinqPad Queries|*.linq|All Files|*.*";
+
+                DialogResult result = chooser.ShowDialog();
+                if (result == DialogResult.OK)
+                {
+                    using (StreamWriter writer = new StreamWriter(chooser.OpenFile()))
+                    {
+                        writer.Write(contents);
+                    }
+
+                    this.ViewLocation(chooser.FileName);
+                }
+            }
+        }
+
+        private void loadQueryToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            LinqPadQuery query;
+            using (var chooser = new OpenFileDialog())
+            {
+                chooser.DefaultExt = ".linq";
+                chooser.Filter = "LinqPad Queries|*.linq|All Files|*.*";
+
+                DialogResult result = chooser.ShowDialog();
+                if (result == DialogResult.OK)
+                {
+                    query = LinqPadQuery.CreateFrom(chooser.FileName);
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            var props = new ConnectionProperties();
+            this.Populate(props);
+            List<string> errors = ValidateLinqQuery(query, props);
+            if (errors.Count == 0)
+            {
+                this.mInitializationQuery = query;
+                this.SetLoadedQueryName(Path.GetFileName(this.mInitializationQuery.Location));
+            }
+            else
+            {
+                DisplayErrors(errors);
+            }
+        }
+
+
+        private void viewToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (this.mInitializationQuery == null)
+            {
+                MessageBox.Show("No query loaded");
+                return;
+            }
+            if (!File.Exists(this.mInitializationQuery.Location))
+            {
+                MessageBox.Show(string.Format("File {0} no longer exists", this.mInitializationQuery.Location));
+                return;
+            }
+
+            ViewLocation(this.mInitializationQuery.Location);
+        }
+
+        private void removeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.mInitializationQuery = null;
+            this.SetLoadedQueryName(null);
+        }
+
+        private void reloadFromDiskToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (this.mInitializationQuery == null)
+                return;
+            if(!File.Exists(this.mInitializationQuery.Location))
+            {
+                MessageBox.Show(string.Format("Query '{0}' no longer exists", this.mInitializationQuery.Location));
+                return;
+            }
+
+            ConnectionProperties props = new ConnectionProperties();
+            this.Populate(props);
+            
+            LinqPadQuery query = LinqPadQuery.CreateFrom(this.mInitializationQuery.Location);
+            List<string> errors = this.ValidateLinqQuery(query, props);
+            if(errors.Count != 0)
+            {
+                MessageBox.Show("Loaded query has errors: \r\n" +
+                    string.Join("\r\n", errors));
+                return;
+            }
+
+            this.mInitializationQuery = query;
+            this.SetLoadedQueryName(Path.GetFileName(this.mInitializationQuery.Location));
+        }
+
         #endregion
+
+
+        private void SetLoadedQueryName(string text)
+        {
+            if (text == null)
+            {
+                this.noQueryLoadedToolStripMenuItem.Text = "No Query Loaded";
+                foreach (var dropDownItem in this.noQueryLoadedToolStripMenuItem.DropDownItems.Cast<ToolStripItem>())
+                {
+                    dropDownItem.Visible = false;
+                }
+            }
+            else
+            {
+                this.noQueryLoadedToolStripMenuItem.Text = text;
+                foreach (var dropDownItem in this.noQueryLoadedToolStripMenuItem.DropDownItems.Cast<ToolStripItem>())
+                {
+                    dropDownItem.Visible = true;
+                }
+            }
+        }
+
+        private string CreateShellQuery(ConnectionProperties props)
+        {
+            var driver = new MongoDynamicDataContextDriver();
+
+            //build the query XDocument
+            var doc = new XDocument();
+            var query = new XElement("Query");
+            doc.Add(query);
+            query.SetAttributeValue("Kind", "Program");
+            query.SetElementValue("Reference", Path.Combine(driver.GetDriverFolder(), "LinqPadMongoDriver.dll"));
+            foreach (string loc in props.AssemblyLocations)
+            {
+                var el = new XElement("Reference");
+                el.SetValue(loc);
+                query.Add(el);
+            }
+            foreach (string ns in MongoDynamicDataContextDriver.GetNamespacesToAdd(props)
+                .Concat(new[]
+                    {
+                        "System",
+                        "GDSX.Externals.LinqPad.Driver"
+                    }))
+            {
+                var el = new XElement("Namespace");
+                el.SetValue(ns);
+                query.Add(el);
+            }
+
+            StringBuilder sb = new StringBuilder();
+            using (var writer = XmlWriter.Create(sb, new XmlWriterSettings{OmitXmlDeclaration = true}))
+                doc.Save(writer);
+
+            sb.AppendLine();
+
+
+            var ass = Assembly.GetExecutingAssembly();
+            using (var stream = ass.GetManifestResourceStream("GDSX.Externals.LinqPad.Driver.ShellInitQuery.linq"))
+            {
+                if (stream == null)
+                    throw new Exception("Could not find static code files");
+                using (var reader = new StreamReader(stream))
+                    sb.Append(reader.ReadToEnd());
+            }
+
+            return sb.ToString();
+        }
+
+
+
+        private List<string> ValidateLinqQuery(LinqPadQuery query, ConnectionProperties props)
+        {
+            List<string> errors = new List<string>();
+
+            StringBuilder sb = new StringBuilder();
+            foreach (var ns in query.Namespaces)
+            {
+                sb.Append("using ").Append(ns).AppendLine(";");
+            }
+            sb.AppendFormat(@"
+public class TestQuery
+{{
+    public TestQuery()
+    {{
+
+    }}
+
+    {0}
+}}", query.Query);
+
+            var driver = new MongoDynamicDataContextDriver();
+            CompilerResults results;
+            using (var codeProvider = new CSharpCodeProvider(new Dictionary<string, string>() { { "CompilerVersion", "v4.0" } }))
+            {
+                var assemblyNames = new HashSet<string>(query.References, new AssemblyPathEqualityComparer());
+
+                //add additional assemblies which may or may not have been overridden
+                assemblyNames.AddRange("System.dll System.Core.dll".Split());
+                assemblyNames.Add(Path.Combine(driver.GetDriverFolder(), "MongoDB.Driver.dll"));
+                assemblyNames.Add(Path.Combine(driver.GetDriverFolder(), "MongoDB.Bson.dll"));
+
+                var options = new CompilerParameters(assemblyNames.ToArray());
+                options.GenerateInMemory = true;
+
+                results = codeProvider.CompileAssemblyFromSource(options, sb.ToString());
+            }
+            if (results.Errors.Count > 0)
+            {
+                errors.AddRange(results.Errors.Cast<CompilerError>().Select(x => x.ToString()));
+
+                return errors;
+            }
+
+            Type compiledType = results.CompiledAssembly.GetType("TestQuery");
+            object instance = Activator.CreateInstance(compiledType);
+            MethodInfo initMethod = compiledType.GetMethod("Initialize", new[] { typeof(ConnectionProperties) });
+            if (initMethod == null)
+            {
+                errors.Add(string.Format("The query must contain a method called Initialize that takes one parameter of type {0}", typeof(ConnectionProperties)));
+                return errors;
+            }
+
+
+            return errors;
+        }
+
+        private void ViewLocation(string path)
+        {
+            System.Diagnostics.Process p = new Process();
+            p.StartInfo.FileName = path;
+            p.Start();
+        }
 
         /// <summary>
         /// populates the connection properties with the values in the form
         /// </summary>
-        private void Populate(ConnectionProperties props)
+        private List<string> Populate(ConnectionProperties props, bool doValidate = false)
         {
+            List<string> errors = new List<string>();
+
             props.ConnectionString = this.txtConnectionString.Text.Trim();
 
             props.AssemblyLocations = new HashSet<string>();
@@ -453,6 +680,14 @@ namespace GDSX.Externals.LinqPad.Driver
                 props.CustomSerializers.Add(pair.Key.ToString(), pair.Value.ToString());
 
             props.AdditionalOptions = this.mAdditionalOptions;
+
+            if(this.mInitializationQuery != null && doValidate)
+            {
+                errors.AddRange(ValidateLinqQuery(this.mInitializationQuery, props));
+            }
+            props.InitializationQuery = this.mInitializationQuery;
+
+            return errors;
         }
         
         /// <summary>
@@ -520,6 +755,12 @@ namespace GDSX.Externals.LinqPad.Driver
 
             this.mAdditionalOptions = props.AdditionalOptions;
 
+            this.mInitializationQuery = props.InitializationQuery;
+            if(this.mInitializationQuery != null)
+            {
+                this.SetLoadedQueryName(Path.GetFileName(this.mInitializationQuery.Location));
+            }
+
             UpdateLoadedAssemblies();
         }
 
@@ -562,10 +803,26 @@ namespace GDSX.Externals.LinqPad.Driver
         /// <returns>true if the data successfully saved, false if the form should stay open</returns>
         private bool DoSave()
         {
-            this.Populate(this.mConnection);
+            List<string> errors = this.Populate(this.mConnection, true);
 
-            this.DialogResult = System.Windows.Forms.DialogResult.OK;
-            return true;
+            if(errors.Count == 0)
+            {
+                this.DialogResult = System.Windows.Forms.DialogResult.OK;
+                return true;
+            }
+            else
+            {
+                DisplayErrors(errors);
+                return false;
+            }
+        }
+
+        private void DisplayErrors(List<string> errors)
+        {
+            var result = MessageBox.Show("There are errors with your settings: \r\n" +
+                       String.Join("\r\n", errors),
+                       "Invalid Settings",
+                       MessageBoxButtons.OK);
         }
 
         //Updates the loaded assemblies view and the type tree view
@@ -742,31 +999,16 @@ namespace GDSX.Externals.LinqPad.Driver
             }
         }
 
+        
     }
     
-    
-    class DynamicComparer<T> : IComparer<T>
-    {
-        public Func<T, T, int> Comparer { get; private set; }
 
-        public DynamicComparer(Func<T, T, int> comparer)
-        {
-            this.Comparer = comparer;
-        }
-
-        public int Compare(T x, T y)
-        {
-            return Comparer(x, y);
-        }
-    }
 
     static class Extensions
     {
-        public static SortedSet<T> AddRange<T>(this SortedSet<T> set, IEnumerable<T> values)
+        public static T AddRange<T,U>(this T set, IEnumerable<U> values) where T : ISet<U>
         {
-            foreach (T val in values)
-                set.Add(val);
-
+            set.UnionWith(values);
             return set;
         }
 

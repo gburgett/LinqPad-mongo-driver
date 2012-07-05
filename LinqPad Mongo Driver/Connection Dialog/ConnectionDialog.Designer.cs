@@ -61,6 +61,14 @@
             this.cancelToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.additionalOptionsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.additionalOptionsToolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
+            this.initializationToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.noQueryLoadedToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.removeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.reloadFromDiskToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.loadQueryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.createShellQueryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.dgCollectionTypes)).BeginInit();
             this.tableLayoutPanel1.SuspendLayout();
             this.panel1.SuspendLayout();
@@ -363,42 +371,43 @@
             // loadToolStripMenuItem
             // 
             this.loadToolStripMenuItem.Name = "loadToolStripMenuItem";
-            this.loadToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.loadToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.loadToolStripMenuItem.Text = "Import";
             this.loadToolStripMenuItem.Click += new System.EventHandler(this.loadToolStripMenuItem_Click);
             // 
             // exportToolStripMenuItem
             // 
             this.exportToolStripMenuItem.Name = "exportToolStripMenuItem";
-            this.exportToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.exportToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.exportToolStripMenuItem.Text = "Export";
             this.exportToolStripMenuItem.Click += new System.EventHandler(this.exportToolStripMenuItem_Click);
             // 
             // clearToolStripMenuItem
             // 
             this.clearToolStripMenuItem.Name = "clearToolStripMenuItem";
-            this.clearToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.clearToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.clearToolStripMenuItem.Text = "Clear";
             this.clearToolStripMenuItem.Click += new System.EventHandler(this.clearToolStripMenuItem_Click);
             // 
             // saveToolStripMenuItem
             // 
             this.saveToolStripMenuItem.Name = "saveToolStripMenuItem";
-            this.saveToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.saveToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.saveToolStripMenuItem.Text = "Save";
             this.saveToolStripMenuItem.Click += new System.EventHandler(this.saveToolStripMenuItem_Click);
             // 
             // cancelToolStripMenuItem
             // 
             this.cancelToolStripMenuItem.Name = "cancelToolStripMenuItem";
-            this.cancelToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.cancelToolStripMenuItem.Size = new System.Drawing.Size(110, 22);
             this.cancelToolStripMenuItem.Text = "Cancel";
             this.cancelToolStripMenuItem.Click += new System.EventHandler(this.cancelToolStripMenuItem_Click);
             // 
             // additionalOptionsToolStripMenuItem
             // 
             this.additionalOptionsToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.additionalOptionsToolStripMenuItem1});
+            this.additionalOptionsToolStripMenuItem1,
+            this.initializationToolStripMenuItem});
             this.additionalOptionsToolStripMenuItem.Name = "additionalOptionsToolStripMenuItem";
             this.additionalOptionsToolStripMenuItem.Size = new System.Drawing.Size(119, 20);
             this.additionalOptionsToolStripMenuItem.Text = "Additional Options";
@@ -409,6 +418,76 @@
             this.additionalOptionsToolStripMenuItem1.Size = new System.Drawing.Size(174, 22);
             this.additionalOptionsToolStripMenuItem1.Text = "Additional Options";
             this.additionalOptionsToolStripMenuItem1.Click += new System.EventHandler(this.additionalOptionsToolStripMenuItem1_Click);
+            // 
+            // initializationToolStripMenuItem
+            // 
+            this.initializationToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.noQueryLoadedToolStripMenuItem,
+            this.toolStripSeparator1,
+            this.loadQueryToolStripMenuItem,
+            this.createShellQueryToolStripMenuItem});
+            this.initializationToolStripMenuItem.Name = "initializationToolStripMenuItem";
+            this.initializationToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
+            this.initializationToolStripMenuItem.Text = "Initialization";
+            // 
+            // noQueryLoadedToolStripMenuItem
+            // 
+            this.noQueryLoadedToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.viewToolStripMenuItem,
+            this.removeToolStripMenuItem,
+            this.reloadFromDiskToolStripMenuItem});
+            this.noQueryLoadedToolStripMenuItem.Name = "noQueryLoadedToolStripMenuItem";
+            this.noQueryLoadedToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.noQueryLoadedToolStripMenuItem.Text = "No Query Loaded";
+            this.noQueryLoadedToolStripMenuItem.ToolTipText = "The currently loaded Query";
+            // 
+            // viewToolStripMenuItem
+            // 
+            this.viewToolStripMenuItem.Name = "viewToolStripMenuItem";
+            this.viewToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.viewToolStripMenuItem.Text = "View";
+            this.viewToolStripMenuItem.ToolTipText = "View the query in LinqPad (or whatever you have configured to view .linq files)";
+            this.viewToolStripMenuItem.Click += new System.EventHandler(this.viewToolStripMenuItem_Click);
+            // 
+            // removeToolStripMenuItem
+            // 
+            this.removeToolStripMenuItem.Name = "removeToolStripMenuItem";
+            this.removeToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.removeToolStripMenuItem.Text = "Remove";
+            this.removeToolStripMenuItem.ToolTipText = "Remove the initialization query from the connection properties.  It will no longe" +
+    "r be run before any queries are executed.";
+            this.removeToolStripMenuItem.Click += new System.EventHandler(this.removeToolStripMenuItem_Click);
+            // 
+            // reloadFromDiskToolStripMenuItem
+            // 
+            this.reloadFromDiskToolStripMenuItem.Name = "reloadFromDiskToolStripMenuItem";
+            this.reloadFromDiskToolStripMenuItem.Size = new System.Drawing.Size(117, 22);
+            this.reloadFromDiskToolStripMenuItem.Text = "Validate";
+            this.reloadFromDiskToolStripMenuItem.ToolTipText = "Reloads the query from disk and validates it.";
+            this.reloadFromDiskToolStripMenuItem.Click += new System.EventHandler(this.reloadFromDiskToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(168, 6);
+            // 
+            // loadQueryToolStripMenuItem
+            // 
+            this.loadQueryToolStripMenuItem.Name = "loadQueryToolStripMenuItem";
+            this.loadQueryToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.loadQueryToolStripMenuItem.Text = "Load New Query";
+            this.loadQueryToolStripMenuItem.ToolTipText = "Click to load a LinqPad query that will be executed to initialize the Mongo Drive" +
+    "r";
+            this.loadQueryToolStripMenuItem.Click += new System.EventHandler(this.loadQueryToolStripMenuItem_Click);
+            // 
+            // createShellQueryToolStripMenuItem
+            // 
+            this.createShellQueryToolStripMenuItem.Name = "createShellQueryToolStripMenuItem";
+            this.createShellQueryToolStripMenuItem.Size = new System.Drawing.Size(171, 22);
+            this.createShellQueryToolStripMenuItem.Text = "Create Shell Query";
+            this.createShellQueryToolStripMenuItem.ToolTipText = "Click to create a Shell for a query that can be used to initialize the Mongo driv" +
+    "er";
+            this.createShellQueryToolStripMenuItem.Click += new System.EventHandler(this.createShellQueryToolStripMenuItem_Click);
             // 
             // ConnectionDialog
             // 
@@ -472,5 +551,13 @@
         private System.Windows.Forms.ToolStripMenuItem cancelToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem additionalOptionsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem additionalOptionsToolStripMenuItem1;
+        private System.Windows.Forms.ToolStripMenuItem initializationToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem loadQueryToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem createShellQueryToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem noQueryLoadedToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
+        private System.Windows.Forms.ToolStripMenuItem removeToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem reloadFromDiskToolStripMenuItem;
     }
 }

@@ -31,6 +31,8 @@ namespace GDSX.Externals.LinqPad.Driver
         public Dictionary<string, string> CustomSerializers { get; set; }
 
         public ConnectionAdditionalOptions AdditionalOptions { get; set; }
+
+        public LinqPadQuery InitializationQuery { get; set; }
         
         public ConnectionProperties()
         {
@@ -230,122 +232,6 @@ namespace GDSX.Externals.LinqPad.Driver
         }
     }
 
-    #region Equality
-    public class CollectionEqualityComparer<T> : IEqualityComparer<ICollection<T>>
-    {
-        public bool Equals(ICollection<T> x, ICollection<T> y)
-        {
-            //if one is null the other should be null or empty
-            if(x == null)
-            {
-                return y == null || y.Count == 0;
-            }
-            if (y == null)
-                return x.Count == 0;
-
-            //quick check - counts
-            if (x.Count != y.Count)
-                return false;
-
-            //deep check - y contains every element of x
-            return x.All(y.Contains);
-        }
-
-        public int GetHashCode(ICollection<T> obj)
-        {
-            if (obj == null)
-                return 0;
-
-            return obj.Aggregate(397, (hash, o) => (hash * 397) ^ o.GetHashCode());
-        }
-    }
-
-    public class DictionaryEqualityComparer<T, U> : IEqualityComparer<IDictionary<T, U>>
-    {
-        /// <summary>
-        /// Gets or sets the EqualityComparer used to compare the values of the dictionary
-        /// </summary>
-        public IEqualityComparer<U> ValueEqualityComparer { get; set; }
-
-        public bool Equals(IDictionary<T, U> x, IDictionary<T, U> y)
-        {
-            if (x == null)
-            {
-                return y == null || y.Count == 0;
-            }
-            if (y == null)
-                return x.Count == 0;
-
-            if (y.Count != x.Count)
-                return false;
-
-            foreach (KeyValuePair<T, U> pair in x)
-            {
-
-                U yValue;
-                
-                //TODO: add key equality comparer if we ever need it
-                if (!y.ContainsKey(pair.Key))
-                    return false;
-                yValue = y[pair.Key];
-                
-
-                if (ValueEqualityComparer == null)
-                {
-                    if (!object.Equals(pair.Value, yValue))
-                        return false;
-                }
-                else
-                {
-                    if (!ValueEqualityComparer.Equals(pair.Value, yValue))
-                        return false;
-                }
-            }
-
-            return true;
-        }
-
-        public int GetHashCode(IDictionary<T, U> obj)
-        {
-            if (obj == null)
-                return 0;
-
-            return obj.Aggregate(397, (hash, pair) =>
-                {
-                    hash = (hash * 397) ^ pair.Key.GetHashCode();
-                    hash = (hash * 397) ^ (ValueEqualityComparer == null ? 
-                        pair.Value.GetHashCode() :
-                        ValueEqualityComparer.GetHashCode(pair.Value));
-
-                    return hash;
-                });
-        }
-    }
-
-    public class StringEqualityComparer : IEqualityComparer<string>
-    {
-        public bool Equals(string x, string y)
-        {
-            if (string.IsNullOrEmpty(x))
-                return string.IsNullOrEmpty(y);
-
-            if (string.IsNullOrEmpty(y))
-                return false;
-
-            return string.Equals(x, y);
-        }
-
-        public int GetHashCode(string obj)
-        {
-            if (string.IsNullOrEmpty(obj))
-                return 0;
-
-            return obj.GetHashCode();
-        }
-    }
-
-    #endregion
-
     #region Serialization
 
     public interface IXElementSerializer<T>
@@ -400,7 +286,7 @@ namespace GDSX.Externals.LinqPad.Driver
     {
         private readonly IXElementSerializer<CollectionTypeMapping> ctmSerializer = new CollectionTypeMappingSerializer();
         private readonly IXElementSerializer<ConnectionAdditionalOptions> additionalOptionsSerializer = new XElementSerializer<ConnectionAdditionalOptions>(); 
-
+        private readonly IXElementSerializer<LinqPadQuery> linqPadQuerySerializer = new LinqPadQuerySerializer(); 
 
         public void Serialize(XElement root, ConnectionProperties obj)
         {
@@ -463,6 +349,15 @@ namespace GDSX.Externals.LinqPad.Driver
                 this.additionalOptionsSerializer.Serialize(additionalOptions, obj.AdditionalOptions);
                 root.Add(additionalOptions);
             }
+
+            //Initialization Query
+            if(obj.InitializationQuery != null)
+            {
+                var query = new XElement("InitializationQuery");
+                this.linqPadQuerySerializer.Serialize(query, obj.InitializationQuery);
+                root.Add(query);
+            }
+
         }
 
         public ConnectionProperties Deserialize(XElement root)
@@ -525,6 +420,13 @@ namespace GDSX.Externals.LinqPad.Driver
             if(xElement != null)
             {
                 obj.AdditionalOptions = this.additionalOptionsSerializer.Deserialize(xElement);
+            }
+
+            //Initialization query
+            xElement = root.Element("InitializationQuery");
+            if (xElement != null)
+            {
+                obj.InitializationQuery = this.linqPadQuerySerializer.Deserialize(xElement);
             }
 
             return obj;
