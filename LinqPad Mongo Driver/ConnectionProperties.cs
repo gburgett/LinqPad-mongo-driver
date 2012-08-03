@@ -251,41 +251,10 @@ namespace GDSX.Externals.LinqPad.Driver
         T Deserialize(XElement root);
     }
 
-    public class XElementSerializer<T> : IXElementSerializer<T>
-    {
-        protected readonly System.Xml.Serialization.XmlSerializer Serializer = new XmlSerializer(typeof(T), "");
-
-        public virtual void Serialize(XElement root, T obj)
-        {
-            var doc = new XDocument();
-            using (XmlWriter writer = doc.CreateWriter())
-            {
-                Serializer.Serialize(writer, obj);
-            }
-            root.Add(doc.Root);
-        }
-
-        public virtual T Deserialize(XElement root)
-        {
-            var enumerator = root.Elements().GetEnumerator();
-            if (!enumerator.MoveNext())
-                throw new InvalidOperationException("Expected at least one element in the XML element " + root.ToString());
-
-            XElement element = enumerator.Current;
-            if (enumerator.MoveNext())
-                throw new InvalidOperationException("Expected only one element in the XML element " + root.ToString());
-
-            using (XmlReader reader = element.CreateReader())
-            {
-                return (T)Serializer.Deserialize(reader);
-            }
-        }
-    }
-
     public class ConnectionPropertiesSerializer : IXElementSerializer<ConnectionProperties>
     {
         private readonly IXElementSerializer<CollectionTypeMapping> ctmSerializer = new CollectionTypeMappingSerializer();
-        private readonly IXElementSerializer<ConnectionAdditionalOptions> additionalOptionsSerializer = new XElementSerializer<ConnectionAdditionalOptions>(); 
+        private readonly IXElementSerializer<ConnectionAdditionalOptions> additionalOptionsSerializer = new ConnectionAdditionalOptionsSerializer(); 
         private readonly IXElementSerializer<LinqPadQuery> linqPadQuerySerializer = new LinqPadQuerySerializer(); 
 
         public void Serialize(XElement root, ConnectionProperties obj)
@@ -466,50 +435,50 @@ namespace GDSX.Externals.LinqPad.Driver
         }
     }
 
-    //public class ConnectionAdditionalOptionsSerializer : IXElementSerializer<ConnectionAdditionalOptions>
-    //{
-    //    public void Serialize(XElement root, ConnectionAdditionalOptions obj)
-    //    {
-    //        if (!root.Name.Equals((XName)"AdditionalOptions"))
-    //            throw new ArgumentException("Element must have name AdditionalOptions");
+    public class ConnectionAdditionalOptionsSerializer : IXElementSerializer<ConnectionAdditionalOptions>
+    {
+        public void Serialize(XElement root, ConnectionAdditionalOptions obj)
+        {
+            if (!root.Name.Equals((XName)"AdditionalOptions"))
+                throw new ArgumentException("Element must have name AdditionalOptions");
 
-    //        root.SetElementValue("AllowSaveForAllTypes", obj.AllowSaveForAllTypes);
-    //        root.SetElementValue("BlanketIgnoreExtraElements", obj.BlanketIgnoreExtraElements);
-    //        XElement element = new XElement("ExplicitSaveAllowedTypes");
-    //        foreach (Type t in obj.ExplicitSaveAllowedTypes)
-    //        {
-    //            element.Add(new XElement("type", t.ToString()));
-    //        }
-    //        root.Add(element);
-    //    }
+            root.SetElementValue("AllowSaveForAllTypes", obj.AllowSaveForAllTypes);
+            root.SetElementValue("BlanketIgnoreExtraElements", obj.BlanketIgnoreExtraElements);
+            XElement element = new XElement("ExplicitSaveAllowedTypes");
+            foreach (string t in obj.ExplicitSaveAllowedTypes)
+            {
+                element.Add(new XElement("type", t));
+            }
+            root.Add(element);
+        }
 
-    //    public ConnectionAdditionalOptions Deserialize(XElement root)
-    //    {
-    //        if (!root.Name.Equals((XName)"AdditionalOptions"))
-    //            throw new ArgumentException("Element must have name AdditionalOptions");
+        public ConnectionAdditionalOptions Deserialize(XElement root)
+        {
+            if (!root.Name.Equals((XName)"AdditionalOptions"))
+                throw new ArgumentException("Element must have name AdditionalOptions");
 
-    //        ConnectionAdditionalOptions ret =  new ConnectionAdditionalOptions();
+            ConnectionAdditionalOptions ret =  new ConnectionAdditionalOptions();
 
-    //        XElement element = root.Element("AllowSaveForAllTypes");
-    //        if (element != null)
-    //            ret.AllowSaveForAllTypes = bool.Parse(element.Value);
-    //        element = root.Element("BlanketIgnoreExtraElements");
-    //        if (element != null)
-    //            ret.BlanketIgnoreExtraElements = bool.Parse(element.Value);
+            XElement element = root.Element("AllowSaveForAllTypes");
+            if (element != null)
+                ret.AllowSaveForAllTypes = bool.Parse(element.Value);
+            element = root.Element("BlanketIgnoreExtraElements");
+            if (element != null)
+                ret.BlanketIgnoreExtraElements = bool.Parse(element.Value);
 
-    //        element = root.Element("ExplicitSaveAllowedTypes");
-    //        if(element != null)
-    //            foreach (XElement xElement in element.Elements())
-    //            {
-    //                if(xElement.Name != "type")
-    //                    throw new InvalidOperationException("Unexpected element " + xElement + "in element collection " + element);
+            element = root.Element("ExplicitSaveAllowedTypes");
+            if(element != null)
+                foreach (XElement xElement in element.Elements())
+                {
+                    if(xElement.Name != "type")
+                        throw new InvalidOperationException("Unexpected element " + xElement + "in element collection " + element);
 
-    //                ret.ex
-    //            }
+                    ret.ExplicitSaveAllowedTypes.Add(xElement.Value);
+                }
 
-    //        return ret;
-    //    }
-    //}
+            return ret;
+        }
+    }
 
 #endregion
 }

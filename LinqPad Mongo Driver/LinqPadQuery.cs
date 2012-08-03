@@ -50,14 +50,12 @@ namespace GDSX.Externals.LinqPad.Driver
             this.Query = query;
         }
 
-        public static LinqPadQuery CreateFrom(string path)
+        public void Reload()
         {
-            LinqPadQuery retval = CreateFrom(File.ReadAllBytes(path));
-            retval.Location = path;
-            return retval;
+            Load(File.ReadAllBytes(this.Location));
         }
 
-        public static LinqPadQuery CreateFrom(byte[] bytes)
+        private void Load(byte[] bytes)
         {
             XDocument doc;
             string query;
@@ -68,7 +66,7 @@ namespace GDSX.Externals.LinqPad.Driver
                     reader.Read();
                     if (reader.Name != "Query")
                     {
-                        return null;
+                        throw new InvalidOperationException("Error loading query: expected xml element named 'Query'");
                     }
 
                     doc = XDocument.Load(reader.ReadSubtree());
@@ -86,7 +84,17 @@ namespace GDSX.Externals.LinqPad.Driver
                 }
             }
 
-            return new LinqPadQuery(doc, query);
+            this.Query = query;
+            this.ConnectionInfo = doc;
+        }
+
+        public static LinqPadQuery CreateFrom(string path)
+        {
+            LinqPadQuery retval = new LinqPadQuery();
+            retval.Location = path;
+            retval.Reload();
+
+            return retval;
         }
 
         public bool Equals(LinqPadQuery other)
@@ -123,50 +131,25 @@ namespace GDSX.Externals.LinqPad.Driver
     {
         public void Serialize(XElement root, LinqPadQuery obj)
         {
-            if(obj.ConnectionInfo != null)
-            {
-                XElement el = new XElement("ConnectionInfo");
-                el.Add(obj.ConnectionInfo.Root);
-                root.Add(el);
-            }
-
             if(!string.IsNullOrEmpty(obj.Location))
             {
                 root.SetElementValue("Location", obj.Location);
-            }
-
-            if(!string.IsNullOrEmpty(obj.Query))
-            {
-                root.SetElementValue("Query", obj.Query);
             }
         }
 
         public LinqPadQuery Deserialize(XElement root)
         {
-            LinqPadQuery ret = new LinqPadQuery();
-
-            XElement element = root.Element("ConnectionInfo");
+            
+            XElement element = root.Element("Location");
             if(element != null)
             {
-                XDocument doc = new XDocument(
-                    element.Elements().FirstOrDefault()
-                );
-                ret.ConnectionInfo = doc;
+                return new LinqPadQuery
+                           {
+                               Location = element.Value
+                           };
             }
 
-            element = root.Element("Location");
-            if(element != null)
-            {
-                ret.Location = element.Value;
-            }
-
-            element = root.Element("Query");
-            if(element != null)
-            {
-                ret.Query = element.Value;
-            }
-
-            return ret;
+            return null;
         }
     }
 

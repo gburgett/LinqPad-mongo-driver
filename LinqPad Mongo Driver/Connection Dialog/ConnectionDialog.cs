@@ -683,6 +683,7 @@ public class TestQuery
 
             if(this.mInitializationQuery != null && doValidate)
             {
+                this.mInitializationQuery.Reload();
                 errors.AddRange(ValidateLinqQuery(this.mInitializationQuery, props));
             }
             props.InitializationQuery = this.mInitializationQuery;
