@@ -541,7 +541,11 @@ namespace {1}
             assemblyNames.Add(Path.Combine(GetDriverFolder(), "MongoDB.Driver.dll"));
             assemblyNames.Add(Path.Combine(GetDriverFolder(), "MongoDB.Bson.dll"));
             if (props.InitializationQuery != null)
+            {
                 assemblyNames.Add(Path.Combine(GetDriverFolder(), "LinqPadMongoDriver.dll"));
+                assemblyNames.UnionWith(props.InitializationQuery.References);
+            }
+                
 
             return assemblyNames;
         }

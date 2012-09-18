@@ -45,7 +45,8 @@ namespace GDSX.Externals.LinqPad.Driver
             if (obj == null)
                 return 0;
 
-            return obj.Aggregate(397, (hash, o) => (hash * 397) ^ o.GetHashCode());
+            return obj.Select(o => o.GetHashCode()).OrderBy(o => o)
+                .Aggregate(397, (hash, o) => (hash * 397) ^ o);
         }
     }
 
@@ -99,15 +100,35 @@ namespace GDSX.Externals.LinqPad.Driver
             if (obj == null)
                 return 0;
 
-            return obj.Aggregate(397, (hash, pair) =>
-            {
-                hash = (hash * 397) ^ pair.Key.GetHashCode();
-                hash = (hash * 397) ^ (ValueEqualityComparer == null ?
-                    pair.Value.GetHashCode() :
-                    ValueEqualityComparer.GetHashCode(pair.Value));
+            return obj.Select(pair => 
+                    new HashPair(
+                        pair.Key.GetHashCode(), 
+                        (ValueEqualityComparer == null ?
+                            pair.Value.GetHashCode() :
+                            ValueEqualityComparer.GetHashCode(pair.Value))
+                    )
+                )
+                .OrderBy(pair => pair.keyHash)
+                .Aggregate(397, (hash, pair) =>
+                {
+                    hash = (hash * 397) ^ pair.keyHash;
+                    hash = (hash * 397) ^ pair.valueHash;
 
-                return hash;
-            });
+                    return hash;
+                });
+        }
+
+        private struct HashPair
+        {
+            public int keyHash;
+
+            public int valueHash;
+
+            public HashPair(int key, int value)
+            {
+                this.keyHash = key;
+                this.valueHash = value;
+            }
         }
     }
 

@@ -24,7 +24,8 @@ namespace GDSX.Externals.LinqPad.Driver
                 if (this.ConnectionInfo == null || this.ConnectionInfo.Root == null)
                     return Enumerable.Empty<string>();
 
-                return this.ConnectionInfo.Root.Elements("Reference").Select(x => x.Value);
+                return this.ConnectionInfo.Root.Elements("Reference").Select(x => x.Value)
+                    .Where(path => !path.StartsWith("<CommonApplicationData>"));
             }
         }
 

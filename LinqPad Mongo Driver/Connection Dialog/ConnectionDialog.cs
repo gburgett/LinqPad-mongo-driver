@@ -611,11 +611,12 @@ public class TestQuery
             using (var codeProvider = new CSharpCodeProvider(new Dictionary<string, string>() { { "CompilerVersion", "v4.0" } }))
             {
                 var assemblyNames = new HashSet<string>(query.References, new AssemblyPathEqualityComparer());
-
+                
                 //add additional assemblies which may or may not have been overridden
                 assemblyNames.AddRange("System.dll System.Core.dll".Split());
                 assemblyNames.Add(Path.Combine(driver.GetDriverFolder(), "MongoDB.Driver.dll"));
                 assemblyNames.Add(Path.Combine(driver.GetDriverFolder(), "MongoDB.Bson.dll"));
+                assemblyNames.Add(Path.Combine(driver.GetDriverFolder(), "LinqPadMongoDriver.dll"));
 
                 var options = new CompilerParameters(assemblyNames.ToArray());
                 options.GenerateInMemory = true;
