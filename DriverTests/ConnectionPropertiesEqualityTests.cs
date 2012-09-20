@@ -108,6 +108,9 @@ namespace DriverTests
             };
 
             Assert.IsTrue(object.Equals(props1, props2));
+            var hash1 = props1.GetHashCode();
+            var hash2 = props2.GetHashCode();
+            Assert.AreEqual(hash1, hash2);
         }
 
 
@@ -238,6 +241,9 @@ namespace DriverTests
             };
 
             Assert.IsTrue(object.Equals(props1, props2));
+            var hash1 = props1.GetHashCode();
+            var hash2 = props2.GetHashCode();
+            Assert.AreEqual(hash1, hash2);
         }
     }
 }

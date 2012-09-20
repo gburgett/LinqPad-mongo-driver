@@ -139,11 +139,11 @@ namespace GDSX.Externals.LinqPad.Driver
         /// <returns></returns>
         public static object GetId(object item)
         {
-            var serializer = BsonSerializer.LookupSerializer(item.GetType());
+            var idProvider = BsonSerializer.LookupSerializer(item.GetType()) as IBsonIdProvider;
             object id;
             Type idNominalType;
             IIdGenerator idGenerator;
-            if (serializer.GetDocumentId(item, out id, out idNominalType, out idGenerator))
+            if (idProvider != null && idProvider.GetDocumentId(item, out id, out idNominalType, out idGenerator))
             {
                 return id;
             }
@@ -285,7 +285,7 @@ namespace GDSX.Externals.LinqPad.Driver
         private class MongoCursorInterceptor<T> : MongoCursor<T>
         {
             private Action<object> TryRemember;
-            public MongoCursorInterceptor(MongoCursor<T> cursor, Action<object> TryRemember) : base(cursor.Collection, cursor.Query)
+            public MongoCursorInterceptor(MongoCursor<T> cursor, Action<object> TryRemember) : base(cursor.Collection, cursor.Query, cursor.ReadPreference)
             {
                 this.TryRemember = TryRemember;
             }

@@ -105,6 +105,7 @@
       <DependentUpon>SingleTypeSelector.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="InterceptorCollection.cs" />
+    <Compile Include="ConnectionPropertiesExtensions.cs" />
     <Compile Include="LinqPadQuery.cs" />
     <Compile Include="MongoDynamicDataContextDriver.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -124,6 +125,15 @@
     <Content Include="header.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <None Include="lib\LINQPad.exe" />
+    <None Include="lib\MongoDB.Bson.dll" />
+    <None Include="lib\MongoDB.Bson.pdb" />
+    <None Include="lib\MongoDB.Bson.XML" />
+    <None Include="lib\MongoDB.Driver.dll" />
+    <None Include="lib\MongoDB.Driver.pdb" />
+    <None Include="lib\MongoDB.Driver.XML" />
+    <None Include="lib\Moq.dll" />
+    <None Include="lib\Moq.pdb" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\DataSources\" />

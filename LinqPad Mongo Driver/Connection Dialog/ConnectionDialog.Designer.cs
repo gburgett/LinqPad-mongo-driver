@@ -28,9 +28,14 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.txtConnectionString = new System.Windows.Forms.TextBox();
             this.lblConnectionString = new System.Windows.Forms.Label();
             this.dgCollectionTypes = new System.Windows.Forms.DataGridView();
+            this.cmsCollectionTypes = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.addToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.deleteToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.clearTypeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.btnConnect = new System.Windows.Forms.Button();
             this.cbDatabases = new System.Windows.Forms.ComboBox();
             this.lblDb = new System.Windows.Forms.Label();
@@ -70,6 +75,7 @@
             this.loadQueryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.createShellQueryToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.dgCollectionTypes)).BeginInit();
+            this.cmsCollectionTypes.SuspendLayout();
             this.tableLayoutPanel1.SuspendLayout();
             this.panel1.SuspendLayout();
             this.panel2.SuspendLayout();
@@ -98,12 +104,44 @@
             // 
             this.dgCollectionTypes.AllowDrop = true;
             this.dgCollectionTypes.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgCollectionTypes.ContextMenuStrip = this.cmsCollectionTypes;
             this.dgCollectionTypes.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dgCollectionTypes.Location = new System.Drawing.Point(3, 191);
             this.dgCollectionTypes.Name = "dgCollectionTypes";
             this.tableLayoutPanel1.SetRowSpan(this.dgCollectionTypes, 2);
             this.dgCollectionTypes.Size = new System.Drawing.Size(410, 384);
             this.dgCollectionTypes.TabIndex = 6;
+            this.dgCollectionTypes.MouseDown += new System.Windows.Forms.MouseEventHandler(this.dgCollectionTypes_MouseDown);
+            // 
+            // cmsCollectionTypes
+            // 
+            this.cmsCollectionTypes.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.addToolStripMenuItem,
+            this.deleteToolStripMenuItem,
+            this.clearTypeToolStripMenuItem});
+            this.cmsCollectionTypes.Name = "cmsCollectionTypes";
+            this.cmsCollectionTypes.Size = new System.Drawing.Size(131, 70);
+            // 
+            // addToolStripMenuItem
+            // 
+            this.addToolStripMenuItem.Name = "addToolStripMenuItem";
+            this.addToolStripMenuItem.Size = new System.Drawing.Size(130, 22);
+            this.addToolStripMenuItem.Text = "Add";
+            this.addToolStripMenuItem.Click += new System.EventHandler(this.cmsCollectionTypes_Add_Click);
+            // 
+            // deleteToolStripMenuItem
+            // 
+            this.deleteToolStripMenuItem.Name = "deleteToolStripMenuItem";
+            this.deleteToolStripMenuItem.Size = new System.Drawing.Size(130, 22);
+            this.deleteToolStripMenuItem.Text = "Delete";
+            this.deleteToolStripMenuItem.Click += new System.EventHandler(this.cmsCollectionTypes_Delete_Click);
+            // 
+            // clearTypeToolStripMenuItem
+            // 
+            this.clearTypeToolStripMenuItem.Name = "clearTypeToolStripMenuItem";
+            this.clearTypeToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.clearTypeToolStripMenuItem.Text = "Clear Type";
+            this.clearTypeToolStripMenuItem.Click += new System.EventHandler(this.cmsCollectionTypes_ClearType_Click);
             // 
             // btnConnect
             // 
@@ -501,6 +539,7 @@
             this.Text = "ConnectionDialog";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.ConnectionDialog_FormClosing);
             ((System.ComponentModel.ISupportInitialize)(this.dgCollectionTypes)).EndInit();
+            this.cmsCollectionTypes.ResumeLayout(false);
             this.tableLayoutPanel1.ResumeLayout(false);
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
@@ -559,5 +598,9 @@
         private System.Windows.Forms.ToolStripMenuItem removeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem viewToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem reloadFromDiskToolStripMenuItem;
+        private System.Windows.Forms.ContextMenuStrip cmsCollectionTypes;
+        private System.Windows.Forms.ToolStripMenuItem addToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem deleteToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem clearTypeToolStripMenuItem;
     }
 }

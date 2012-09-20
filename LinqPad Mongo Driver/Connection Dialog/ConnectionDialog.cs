@@ -33,7 +33,7 @@ namespace GDSX.Externals.LinqPad.Driver
                                                   
         private readonly Func<string, Assembly> loadSafely;
 
-        private Dictionary<string, List<CollectionTypeMapping>> mDatabases = new Dictionary<string, List<CollectionTypeMapping>>();
+        private Dictionary<string, HashSet<CollectionTypeMapping>> mDatabases = new Dictionary<string, HashSet<CollectionTypeMapping>>();
 
         private readonly IXElementSerializer<ConnectionProperties> connectionPropertiesSerializer = new ConnectionPropertiesSerializer();
 
@@ -66,76 +66,27 @@ namespace GDSX.Externals.LinqPad.Driver
             var mongo = MongoServer.Create(connString);
             try
             {
-                HashSet<string> seenDBs = new HashSet<string>();
-
-                //Load up each database by name, retrieving the current collection mappings.
-                foreach (string name in mongo.GetDatabaseNames())
-                {
-                    seenDBs.Add(name);
-
-                    List<CollectionTypeMapping> mappings = null;
-                    if (!this.mDatabases.TryGetValue(name, out mappings))
-                    {
-                        mappings = new List<CollectionTypeMapping>();
-                        this.mDatabases[name] = mappings;
-                    }
-
-                    var mappingLookup = mappings.ToDictionary(x => x.CollectionName);
-                    HashSet<string> seenCollections = new HashSet<string>();
-
-                    MongoDatabase db = mongo.GetDatabase(name);
-                    foreach (string collectionName in db.GetCollectionNames())
-                    {
-                        seenCollections.Add(collectionName);
-
-                        CollectionTypeMapping mapping = null;
-                        if (!mappingLookup.TryGetValue(collectionName, out mapping))
-                        {
-                            mapping = new CollectionTypeMapping
-                                          {
-                                              CollectionName = collectionName
-                                          };
-                            mappings.Add(mapping);
-                        }
-
-                        ////wastes DB hits for most of our usage.
-                        //if (mapping.CollectionType == null)
-                        //{
-                        //    //see if we can't figure out the type for the collection
-                        //    Type t = TryGetTypeForCollection(db, collectionName, typeLookup);
-                        //    if (t != null)
-                        //    {
-                        //        mapping.CollectionType = t.ToString();
-                        //    }
-
-                        //}
-                    }
-
-                    //trim collections that don't exist in the DB
-                    for(int i = mappings.Count - 1; i >= 0; i--)
-                    {
-                        if(!seenCollections.Contains(mappings[i].CollectionName))
-                            mappings.RemoveAt(i);
-                    }
-                }
-
-                //trim all DB's that don't exist in the connection
-                foreach (string dbName in this.mDatabases.Keys.ToArray())
-                {
-                    if (!seenDBs.Contains(dbName))
-                        this.mDatabases.Remove(dbName);
-                }
+                mongo.TrimDatabaseMappings(this.mDatabases);
             }
             finally
             {
                 mongo.Disconnect();
             }
 
+            string selectedDb = (string)this.cbDatabases.SelectedItem;
             this.cbDatabases.Items.Clear();
             this.cbDatabases.Items.AddRange(this.mDatabases.Keys.Cast<object>().ToArray());
-            this.cbDatabases.SelectedItem = this.mDatabases.Keys.FirstOrDefault();
+            if(selectedDb != null && this.mDatabases.ContainsKey(selectedDb))
+            {
+                this.cbDatabases.SelectedItem = selectedDb;
+            }
+            else
+            {
+                this.cbDatabases.SelectedItem = this.mDatabases.Keys.FirstOrDefault();
+            }
+            
             if (this.cbDatabases.SelectedItem != null)
-                this.dgCollectionTypes.DataSource = this.mDatabases[(string)this.cbDatabases.SelectedItem].Select(m => new TypeMappingWrapper(this, m)).ToList();
+                this.dgCollectionTypes.DataSource = this.mDatabases[(string)this.cbDatabases.SelectedItem].Select(m => new TypeMappingWrapper(m)).ToList();
             else
                 this.dgCollectionTypes.DataSource = null;
         }
@@ -290,7 +241,7 @@ namespace GDSX.Externals.LinqPad.Driver
         private void cbDatabases_SelectedValueChanged(object sender, EventArgs e)
         {
             if (this.cbDatabases.SelectedItem != null)
-                this.dgCollectionTypes.DataSource = this.mDatabases[(string)this.cbDatabases.SelectedItem].Select(m => new TypeMappingWrapper(this, m)).ToList();
+                this.dgCollectionTypes.DataSource = this.mDatabases[(string)this.cbDatabases.SelectedItem].Select(m => new TypeMappingWrapper(m)).ToList();
             else
                 this.dgCollectionTypes.DataSource = null;
         }
@@ -715,7 +666,7 @@ public class TestQuery
                         {
                             return ass.GetExportedTypes();
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
                             badAssemblies.Add(ass);
                             return Enumerable.Empty<Type>();
@@ -726,10 +677,10 @@ public class TestQuery
                 var key = this.LoadedAssemblies.First(x => x.Value == badAssembly).Key;
                 this.LoadedAssemblies[key] = null;
             }
-            this.mDatabases = new Dictionary<string, List<CollectionTypeMapping>>();
+            this.mDatabases = new Dictionary<string, HashSet<CollectionTypeMapping>>();
             foreach (var pair in props.CollectionTypeMappings)
             {
-                this.mDatabases[pair.Key] = pair.Value.ToList();
+                this.mDatabases[pair.Key] = new HashSet<CollectionTypeMapping>(pair.Value);
             }
 
             this.cbDatabases.Items.Clear();
@@ -737,7 +688,7 @@ public class TestQuery
             string db = this.mDatabases.Keys.FirstOrDefault();
             this.cbDatabases.SelectedItem = db;
             if (db != null)
-                this.dgCollectionTypes.DataSource = this.mDatabases[db].Select(m => new TypeMappingWrapper(this, m)).ToList();
+                this.dgCollectionTypes.DataSource = this.mDatabases[db].Select(m => new TypeMappingWrapper(m)).ToList();
             else
                 this.dgCollectionTypes.DataSource = null;
             if(props.SelectedDatabase != null)
@@ -905,11 +856,11 @@ public class TestQuery
         /// <summary>
         /// Data wrapper for the Collection type mappings to control view formatting
         /// </summary>
-        public class TypeMappingWrapper
+        public class TypeMappingWrapper : IEquatable<TypeMappingWrapper>
         {
             private CollectionTypeMapping mData;
 
-            public TypeMappingWrapper(ConnectionDialog dialog, CollectionTypeMapping data)
+            public TypeMappingWrapper(CollectionTypeMapping data)
             {
                 this.mData = data;
             }
@@ -958,6 +909,31 @@ public class TestQuery
                         
                 //}
             }
+            
+            internal CollectionTypeMapping GetUnderlyingData()
+            {
+                return mData;
+            }
+
+            public bool Equals(TypeMappingWrapper other)
+            {
+                if (ReferenceEquals(null, other)) return false;
+                if (ReferenceEquals(this, other)) return true;
+                return Equals(other.mData, mData);
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (ReferenceEquals(null, obj)) return false;
+                if (ReferenceEquals(this, obj)) return true;
+                if (obj.GetType() != typeof (TypeMappingWrapper)) return false;
+                return Equals((TypeMappingWrapper) obj);
+            }
+
+            public override int GetHashCode()
+            {
+                return (mData != null ? mData.GetHashCode() : 0);
+            }
         }
 
         /// <summary>
@@ -998,6 +974,67 @@ public class TestQuery
                 {
                     return string.Format("{0} ({1})", this.Assembly.GetName().Name, this.Location);
                 }
+            }
+        }
+
+        private void cmsCollectionTypes_ClearType_Click(object sender, EventArgs e)
+        {
+            foreach (var selectedRow in this.dgCollectionTypes.SelectedCells.Cast<DataGridViewCell>().Select(x => x.OwningRow).Distinct())
+            {
+                ((TypeMappingWrapper)selectedRow.DataBoundItem).CollectionType = null;
+            }
+        }
+
+        private void cmsCollectionTypes_Delete_Click(object sender, EventArgs e)
+        {
+            if (this.cbDatabases.SelectedItem != null)
+            {
+                var selectedWrappers = new HashSet<TypeMappingWrapper>(
+                    this.dgCollectionTypes.SelectedCells.Cast<DataGridViewCell>().Select(x => x.OwningRow.DataBoundItem).Cast<TypeMappingWrapper>()
+                    );
+                this.mDatabases[(string)this.cbDatabases.SelectedItem]
+                    .RemoveWhere(ctm => selectedWrappers.Contains(new TypeMappingWrapper(ctm)));
+
+                var list = this.mDatabases[(string)this.cbDatabases.SelectedItem]
+                    .Select(m => new TypeMappingWrapper(m)).ToList();
+                
+                this.dgCollectionTypes.DataSource = list;
+                
+                this.dgCollectionTypes.ClearSelection();
+            }
+            else
+            {
+                MessageBox.Show("Cannot remove a row when no database is selected", "Error", MessageBoxButtons.OK);
+            }
+        }
+
+        private void cmsCollectionTypes_Add_Click(object sender, EventArgs e)
+        {
+            if (this.cbDatabases.SelectedItem != null)
+            {
+                this.mDatabases[(string)this.cbDatabases.SelectedItem].Add(new CollectionTypeMapping());
+
+                var list = this.mDatabases[(string)this.cbDatabases.SelectedItem]
+                    .Select(m => new TypeMappingWrapper(m)).ToList();
+                this.dgCollectionTypes.DataSource = list;
+                int lastRow = this.dgCollectionTypes.Rows.GetLastRow(DataGridViewElementStates.Visible);
+                
+                this.dgCollectionTypes.ClearSelection();
+                this.dgCollectionTypes.Rows[lastRow].Cells.OfType<DataGridViewCell>().First().Selected = true;
+            }
+            else
+            {
+                MessageBox.Show("Cannot add a row when no database is selected", "Error", MessageBoxButtons.OK);
+            }
+        }
+
+        private void dgCollectionTypes_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                var hti = this.dgCollectionTypes.HitTest(e.X, e.Y);
+                this.dgCollectionTypes.ClearSelection();
+                this.dgCollectionTypes.Rows[hti.RowIndex].Selected = true;
             }
         }
 

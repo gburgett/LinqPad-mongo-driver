@@ -127,6 +127,19 @@ namespace GDSX.Externals.LinqPad.Driver
                 props.InitializationQuery = LinqPadQuery.CreateFrom(props.InitializationQuery.Location);
             }
 
+            //refresh DB collections
+            MongoServer mongo = null;
+            try
+            {
+                mongo = MongoServer.Create(props.ConnectionString);
+                mongo.TrimDatabaseMappings(props.CollectionTypeMappings);
+            }
+            finally
+            {
+                if(mongo != null)
+                    mongo.Disconnect();
+            }
+
             var code = new[] { GenerateDynamicCode(props, assemblies, nameSpace, typeName) }
                         .Concat(GetStaticCodeFiles());
             //write inner class CustomInitQuery
@@ -594,6 +607,8 @@ namespace {1}
             return ret.Distinct();
         }
 
+        private static bool mSerializersAlreadyRegistered = false;
+
         /// <summary>
         /// Initializes the driver after it has been instantiated.
         /// </summary>
@@ -622,7 +637,7 @@ namespace {1}
 
             
             
-            if(props.CustomSerializers != null)
+            if(!mSerializersAlreadyRegistered && props.CustomSerializers != null)
             {
                 List<Assembly> assemblies =
                     props.AssemblyLocations.Select(LoadAssemblySafely).ToList();
@@ -637,6 +652,8 @@ namespace {1}
 
                     BsonSerializer.RegisterSerializer(type, (IBsonSerializer)Activator.CreateInstance(serializer));
                 }
+
+                mSerializersAlreadyRegistered = true;
             }
 
             if (props.AdditionalOptions.BlanketIgnoreExtraElements)
@@ -646,6 +663,9 @@ namespace {1}
 
                 BsonClassMap.RegisterConventions(conventions, t => true);
             }
+
+            //set as default
+            MongoDB.Bson.IO.JsonWriterSettings.Defaults.Indent = true;
         }
 
         /*
